@@ -1,0 +1,186 @@
+/*First slide with flocking simulation*/
+
+#home {
+	height: calc(100vh + var(--navigation-height));
+}
+
+#iframe {
+	position: absolute;
+	width: calc(100vw - (100vw - 100%));
+	height: calc(100vh);
+	border: none;
+	z-index: 0;
+}
+
+#titleContainer {
+	position: relative; 
+	height: 100vh; 
+	padding-top: var(--navigation-height);
+	pointer-events: none;
+}
+
+#scroll-down {
+	pointer-events: auto;
+}
+
+#scroll-down:hover #down-arrow {
+	position: absolute;
+	bottom: 0vh;
+}
+
+@media screen and (min-width: 1000px) {
+	.title {
+		font-size: 6vw;
+		font-family: Raleway-Bold;
+		display: none;
+	}
+
+	#title1 {
+		position: absolute;
+		left: 20vw; 
+		top: 25vh;
+	}
+
+	#title2 {
+		position: absolute; 
+		right: 20vw; 
+		top: 50vh; 
+		padding-left: 20vw;
+	}
+
+	#title3 {
+		font-size: 2vw;
+		position: absolute;
+		bottom: 10vh;
+		left: 50%;
+		transform: translate(-50%);
+		width: 100%;
+		text-align: center;
+	}
+
+	#down-arrow {
+		position: absolute;
+		width: 10vh;
+		left: 50%;
+		bottom: 3vh;
+		transform: translate(-50%);
+		text-align: center;
+		z-index: 2;
+		transition: 1s;
+	}
+
+	#left-arrow {
+		pointer-events: auto;
+		position: absolute;
+		width: 10vh;
+		top: 50%;
+		left: 0;
+		z-index: 5;
+		transform: rotate(90deg) translate(-50%, 0);
+	}
+
+	#right-arrow {
+		pointer-events: auto;
+		position: absolute;
+		width: 10vh;
+		top: 50%;
+		right: 0;
+		z-index: 5;
+		transform: rotate(270deg) translate(50%, 0);
+		transition: 0.5s;
+	}
+}
+
+@media screen and (max-width: 1000px) {
+  	.title {
+		font-size: 8vh;
+		font-family: Raleway-Bold;
+		display: none;
+	}
+
+	#title1 {
+		font-size: 8vh;
+		position: absolute;
+		top: 25vh;
+		left: 50%;
+		transform: translate(-50%);
+		width: 100%;
+		text-align: center;
+	}
+
+	#title2 {
+		font-size: 8vh;
+		position: absolute;
+		top: 50vh;
+		left: 50%;
+		transform: translate(-50%);
+		width: 100%;
+		text-align: center;
+	}
+
+	#title3 {
+		font-size: 2vh;
+		position: absolute;
+		bottom: 10vh;
+		left: 50%;
+		transform: translate(-50%);
+		width: 100%;
+		text-align: center;
+	}
+
+	#down-arrow {
+		position: absolute;
+		width: 10vh;
+		left: 50%;
+		bottom: 3vh;
+		transform: translate(-50%);
+		text-align: center;
+		z-index: 2;
+		transition: 1s;
+	}
+
+	#left-arrow {
+		pointer-events: auto;
+		position: absolute;
+		width: 10vh;
+		top: 50%;
+		left: 0;
+		z-index: 10;
+		transform: rotate(90deg) translate(-50%, 0);
+	}
+
+	#right-arrow {
+		pointer-events: auto;
+		position: absolute;
+		width: 10vh;
+		top: 50%;
+		right: 0;
+		z-index: 10;
+		transform: rotate(270deg) translate(50%, 0);
+	}
+}
+
+#linkToSim {
+	position: absolute;
+	bottom: 0;
+	margin: 10px;
+	z-index: 2;
+	color: white;
+	font-size: 2vh;
+	pointer-events: auto;
+}
+
+#simInfo {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	font-size: 2vh;
+}
+
+/*Second slide*/
+
+.contactinfo {
+	margin-bottom: 10px; 
+	font-size: 15px; 
+	margin-left: 20px;
+}

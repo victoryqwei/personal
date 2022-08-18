@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>Autonomous</title>
+		<style>
+			body { margin: 0; overflow: hidden}
+			canvas {
+				border: solid black 1px;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" ></canvas>
+
+		<script src="jquery.js"></script>
+		<script src="vector.js"></script>
+		<script src="functions.js"></script>
+		
+		<script>
+			var canvas = document.getElementById("canvas");
+			var ctx = canvas.getContext("2d");
+            
+      canvas.width = $(document).innerWidth();
+      canvas.height = $(document).innerHeight();
+
+			var mouseX, mouseY;
+
+			var Vehicle = function (x, y) {
+				this.location = new Vector(x || random(0, canvas.width), y || random(0, canvas.height));
+				this.velocity = new Vector();
+				this.acceleration = new Vector();
+				
+				this.maxSpeed = 4;
+				this.maxForce = 0.1;
+				
+				this.mass = 1;
+				this.angle = 0;
+			}
+			Vehicle.prototype.update = function () {
+				this.velocity.add(this.acceleration);
+				this.velocity.limit(this.maxSpeed);
+				this.location.add(this.velocity);
+				
+				this.angle = Math.atan(-this.velocity.y/this.velocity.x);
+				
+        this.acceleration.mult(0);
+			}
+		  Vehicle.prototype.applyForce = function (force) {
+		    var f = force.copy();
+		    f.div(this.mass);
+		    this.acceleration.add(f);
+		  }
+			Vehicle.prototype.blockEdges = function () {
+        if (this.location.x + this.mass * 10  > canvas.width) {
+          this.location.x = canvas.width - this.mass * 10;
+          this.velocity.x *= -1/2;
+        } else if (this.location.x < 0) {
+          this.velocity.x *= -1/2;
+          this.location.x = this.mass * 10 ;
+        }
+
+        if (this.location.y + this.mass * 10 > canvas.height) {
+          this.velocity.y *= -1/2;
+          this.location.y = canvas.height - this.mass * 10;
+        } else if (this.location.y - this.mass * 10 < 0) {
+        	this.velocity.y *= -1/2;
+          this.location.y = this.mass * 10;
+        }
+			}
+			Vehicle.prototype.teleEdges = function () {
+			  if (this.location.x + this.mass * 10  > canvas.width) {
+          this.location.x = this.mass * 10;
+        } else if (this.location.x < 0) {
+          this.location.x = canvas.width - this.mass * 10 ;
+        }
+
+        if (this.location.y + this.mass * 10 > canvas.height) {
+          this.location.y = this.mass * 10;
+        } else if (this.location.y - this.mass * 10 < 0) {
+          this.location.y = canvas.height - this.mass * 10;
+        }
+			}
+			Vehicle.prototype.display = function () {
+				drawRect(this.location.x, this.location.y, this.mass*20, this.mass*10, this.angle);
+			}
+      Vehicle.prototype.attract = function (m) {
+          var force = this.location.copy();
+          force.sub(m.location);
+			    var distance = force.getMag();
+			    distance = constrain(distance, 5, 25);
+			    force.normalize();
+			 
+			    var strength = (1 * this.mass * m.mass) / (distance * distance);
+			    force.mult(strength);
+			    return force;
+      }
+      Vehicle.prototype.seek = function (target) {
+        var desired = new Vector().sub(target,this.location);
+        desired.y = -desired.y;
+        desired.normalize();
+        desired.mult(this.maxSpeed);
+        var steer = new Vector().sub(desired,this.velocity);
+        steer.limit(this.maxForce);
+        return steer;
+      }
+      Vehicle.prototype.arrive = function (target) {
+        var desired = new Vector().sub(target,this.location);
+        desired.y = -desired.y;
+        var d = desired.getMag();
+        desired.normalize();
+        
+        if (d < 100) {
+          var m = map(d,0,100,0,this.maxSpeed);
+          desired.mult(m);
+        } else {
+          desired.mult(this.maxSpeed);
+        }
+        
+        var steer = new Vector().sub(desired,this.velocity);
+        steer.limit(this.maxForce);
+        this.applyForce(steer);
+      }
+      Vehicle.prototype.follow = function (p) {
+        var predict = this.velocity.copy();
+        predict.normalize();
+        predict.mult(25);
+        var predictLoc = new Vector().add(this.location, predict);
+        
+        var target = null;
+ 
+        var worldRecord = 10000000;
+ 
+        for (var i = 0; i < p.points.length-1; i++) {
+          var a = p.points[i];
+          var b = p.points[i+1];
+          var normalPoint = getNormalPoint(predictLoc, a, b);
+          if (normalPoint.x < a.x || normalPoint.x > b.x) {
+            normalPoint = b.copy();
+          }
+         
+          var distance = new Vector().dist(predictLoc, normalPoint);
+         
+          if (distance < worldRecord) {
+            worldRecord = distance;
+            target = normalPoint.copy();
+          }
+        }
+        
+        this.seek(target);
+      }
+      Vehicle.prototype.separate = function (other) {
+        var steer = new Vector();
+        for (var i = 0; i < other.length; i++) {
+          var desiredSeparation = 20;
+          
+          var sum = new Vector();
+          var count = 0;
+          
+          for (var i in other) {
+            var d = new Vector().dist(this.location, other[i].location);
+            
+            if (d > 0 && d < desiredSeparation) {
+              var diff = new Vector().sub(this.location, other[i].location);
+              diff.normalize();
+              sum.add(diff);
+              
+              count++
+            }
+          }
+          
+          if (count > 0) {
+            sum.div(count);
+            
+            sum.setMag(this.maxSpeed);
+   
+            steer = new Vector().sub(sum,this.velocity);
+            steer.limit(this.maxForce);
+            
+            
+          }
+        }
+        return steer;
+      }
+      
+      Vehicle.prototype.applyBehaviours = function (v) {
+        var sep = this.separate(v);
+        var seek = this.seek(new Vector(mouseX,mouseY));
+        
+        //console.log(sep + " " + seek);
+    
+        sep.mult(1.5);
+        seek.mult(0.5);
+         
+        this.applyForce(sep);
+        this.applyForce(seek);
+      }
+      
+      
+      var Path = function (array) {
+        this.points = array || [new Vector(100, 100), new Vector(50, canvas.height/2), new Vector(100, canvas.height-100), new Vector(canvas.width-100, canvas.height-100)];
+        
+        this.radius = 20;
+      }
+      Path.prototype.display = function () {
+        ctx.beginPath();
+        ctx.lineWidth = 2;
+        ctx.fillStyle = "black";
+        for (var i = 0; i < this.points.length; i++) {
+          if (i == 0) {
+            ctx.moveTo(this.points[i].x, this.points[i].y);
+          } else {
+            ctx.globalAlpha = 1;
+            ctx.lineTo(this.points[i].x, this.points[i].y);
+            ctx.stroke();
+            ctx.moveTo(this.points[i].x, this.points[i].y);
+          }
+        }
+        
+        ctx.closePath();
+      }
+      Path.prototype.addPoint = function (x, y) {
+        this.points.push(new Vector(x, y))
+      }
+      
+      var path = new Path();
+      
+			var vehicles = [];
+			
+			for (var i = 0; i < 100; i++) {
+			  vehicles.push(new Vehicle());
+			}
+
+			function draw() {
+			  if (mouseDown) {
+			    vehicles.push(new Vehicle(mouseX, mouseY))
+			  }
+			  
+			  //path.display();
+			  
+				for(var i = 0; i < vehicles.length; i++) {
+				  //vehicles[i].seek(new Vector(mouseX, mouseY))
+				  //vehicles[i].follow(path);
+				  //vehicles[i].separate(vehicles);
+				  
+				  vehicles[i].applyBehaviours(vehicles);
+				  
+					vehicles[i].update();
+          vehicles[i].display();
+					vehicles[i].teleEdges();
+					
+				}
+			}
+
+			setInterval(function () {
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				draw();
+			}, 1000/60)
+
+			$(document).mousemove(function (e) {
+				mouseX = e.offsetX;
+				mouseY = e.offsetY;
+			})
+			
+			var mouseDown = false;
+			
+			$(document).mousedown(function (e) {
+			  mouseDown = true;
+			}).mouseup(function (e) {
+			  mouseDown = false;
+			})
+		</script>
+	</body>
+</html>

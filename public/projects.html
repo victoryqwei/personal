@@ -1,0 +1,155 @@
+<div class="container">
+	
+
+	<div id="project-holder">
+		<div class="project-container">
+			<h1 id="project-title">Featured Projects</h1>
+		</div>
+
+		<!-- <div class="project-container"><div class="project-content"><img class="project-logo" src="https://blockcraft.victorwei.com/logo.png"><div class="project-text"><h1 class="project-title"></h1><p class="project-description"></p><div class="project-languages"></div></div></div></div> -->
+	</div>
+	
+
+	<div class="project-container">
+			<h1 id="project-title">More Projects</h1>
+		</div>
+	<div id="demo-holder">
+
+	</div>
+</div>
+
+
+ 
+<script>
+	socket.emit('requestProjects', '');
+
+	// Old
+
+	/*
+	
+		{
+			name: "Maze Runner",
+			description: "Use WASd or arrow keys to run away from the red square in this uniquely generated maze. See how long you can survive! Uses A* algorithm to track the player.",
+			logo: "./projects/maze/logo.png",
+			languages: ["Javascript", "HTML Canvas"],
+			projectLink: "https://victorwei.com/projects/Maze-Runner",
+			githubLink: "https://github.com/victoryqwei/Maze-Runner"
+		}
+	*/
+
+	var projects = [
+		{
+			name: "BlockCraft",
+			description: "BlockCraft is a WebGL implementation of an infinite procedurally-generated voxel world that runs on the browser. This project originally spawned as a Minecraft Classic clone but has expanded to include multiplayer PvP, crafting, shaders and much more!",
+			logo: "https://victorwei.com/assets/blockcraft.png",
+			languages: ["Javascript", "HTML Canvas", "Socket.io", "Three.js"],
+			projectLink: "https://blockcraft.victorwei.com",
+			githubLink: "https://github.com/victoryqwei/blockcraft"
+		},
+		{
+			name: "QuickMark",
+			description: "Teachers have endless amounts of marking, especially now with virtual learning, so I developed a web application that automates and streamlines the marking of test responses using computer vision.",
+			logo: "https://quickmark.victorwei.com/favicon.png",
+			languages: ["Javascript", "Python", "Socket.io"],
+			projectLink: "https://quickmark.victorwei.com/",
+			githubLink: "https://github.com/Deus-Group-HTN/quickmark"
+		},
+		{
+			name: "Interplanetarium",
+			description: "A web-based game where you travel from planet to planet gathering resources whilst maintaining your rocket. Watch out for enemies and blackholes that you might get sucked into.",
+			logo: "https://space.victorwei.com/images/logo.png",
+			languages: ["Javascript", "HTML Canvas", "Socket.IO"],
+			projectLink: "https://space.victorwei.com/server1",
+			githubLink: "https://github.com/victoryqwei/Interplanetarium"
+		},
+		{
+			name: "Core",
+			description: "An online multiplayer game where you try to protect your Core while also attacking other players Core. Buy to upgrade / protect your Core by collecting power balls that spawn from your Core or randomly around the map.",
+			logo: "https://core.victorwei.com/logo.png",
+			languages: ["Javascript", "HTML Canvas", "Socket.io"],
+			projectLink: "https://core.victorwei.com",
+			githubLink: "https://github.com/victoryqwei/Core"
+		},
+		/*{
+			name: "Metro",
+			description: "A traffic optimization game about designing a city bus map for a city. Players are tasked with constructing an efficient transit network supporting an ever-growing city of stations.",
+			logo: "./projects/metro/logo.png",
+			languages: ["Javascript", "HTML Canvas"],
+			projectLink: "https://victorwei.com/projects/metro",
+			githubLink: ""
+		},*/
+		{
+			name: "3D Car Simulator",
+			description: "Vehicle simulator that simulates engine, suspension, and steering physics in 3D. Implements vehicle dynamics with applied forces to realistically simulate the car.",
+			logo: "./featured/car-3d/logo.png",
+			languages: ["Javascript", "Three.js"],
+			projectLink: "https://victorwei.com/featured/car-3d",
+			githubLink: "https://github.com/victoryqwei/car-3d"
+		}/*,
+		{
+			name: "Multiplayer Pool",
+			description: "An online pool game which uses vector physics to simulate collisions.",
+			logo: "https://pool.victorwei.com/logo.png",
+			languages: ["Javascript", "HTML Canvas", "Socket.io"],
+			projectLink: "https://pool.victorwei.com",
+			githubLink: ""
+		}*/
+	];
+
+	for (let p of projects) {
+		let projectLanguages = "";
+		for (let l of p.languages) {
+			let link = "";
+			if (l == "Javascript")
+				link = "https://www.javascript.com/";
+			else if (l == "Three.js")
+				link = "https://threejs.org/";
+			else if (l == "HTML Canvas")
+				link = "https://www.w3schools.com/html/html5_canvas.asp";
+			else if (l == "Socket.io")
+				link = "https://socket.io/";
+			projectLanguages += "<div><a target='_blank' href='" + link + "'>" + l + "</a></div>";
+		}
+
+		var projectContainer = $('<div class="project-container"><div class="project-content"><img class="project-logo" src="'+p.logo+'"><div class="project-text"><h1 class="project-title">'+p.name+'</h1><p class="project-description">'+p.description+'</p><div class="project-languages">'+projectLanguages+'</div><a class="project-link" href="'+p.githubLink+'" target="_blank"><img src="./pic/github.png"></a><a class="project-link" href="'+p.projectLink+'" target="_blank"><button class="project-button">Launch</button></a></div></div></div>');
+		projectContainer.appendTo('#project-holder');
+	}
+
+	var demoes = []
+	var files = [];
+
+	var isInViewport = function (elem) {
+	    var bounding = elem.getBoundingClientRect();
+	    return (
+	        bounding.top >= 0 &&
+	        bounding.left >= 0 &&
+	        bounding.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+	        bounding.right <= (window.innerWidth || document.documentElement.clientWidth)
+	    );
+	};
+
+	let demoDescription = {
+		"2048": 'Solves 2048 using a heuristic algorithm',/*
+		"angrybird": "Simulates the Angry Birds physics using a web-based physics engine", */
+		"car": "Car neuroevolution simulation that learns to traverse a path with obstacles", 
+		"car-sim": "2D car drifting simulator with simulated braking, steering, and drifting", 
+		"flappybird": "Flappybird neuroevolution simulation with user customizable game settings", 
+		"maze": "Maze runner game in a procedurally generated maze and uses the A* algorithm to find the player", 
+		"metro": "A transit optimization game where the player is tasked to constructing an efficient network", 
+		"pool": "An online pool game which uses vector physics to simulate collisions", 
+		"ray": "A zombie shooter game using 2D ray cast to simulate a 3D environment", 
+		"snake": "A neuroevolution simulation of the popular game Snake",
+		"cloth": "A cloth simulation using verlet integration"
+	}	
+
+	socket.on('receiveProjects', function (data) {
+		for (var i = 0; i < data.length; i++) {
+			// Add to web demos
+			var demoContainer = $('<div class="col-md-4 col-sm-6 col-xs-12 demo-wrap"><div class="demo-centered"><span class="demo-text">' + data[i] + '</span><p>' + demoDescription[data[i]] + '</span></div><a target="_blank" href="https://victorwei.com/projects/' + data[i] + '"><button type="button" id="' + data[i] + '" value="off" class="demo-button">Launch</button></a><img class="demo-logo" src="https://victorwei.com/projects/' + data[i] + '/logo.png"></div>');
+
+			demoContainer.appendTo('#demo-holder');
+
+			demoes.push(document.getElementById(data[i]));
+		}
+	})
+</script>

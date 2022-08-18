@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>Graviton Surge</title>
+		<style>
+			body { margin: 0; overflow: hidden}
+			canvas {
+				border: solid black 1px;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" ></canvas>
+
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+		<script src="functions.js"></script>
+		<script src="vector.js"></script>
+		<script>
+			var canvas = document.getElementById("canvas");
+			var ctx = canvas.getContext("2d");
+            
+            canvas.width = $(document).innerWidth();
+            canvas.height = $(document).innerHeight();
+
+             $(window).resize(function () {
+		        canvas.width = window.innerWidth;
+		        canvas.height = window.innerHeight;
+		      })
+
+			var mouseX, mouseY;
+
+			var Mover = function (m, x, y) {
+				this.location = new Vector(x || Math.floor(Math.random() * canvas.width - 50) + 25, y || Math.floor(Math.random() * canvas.height - 50) + 25);
+				this.velocity = new Vector();
+				this.acceleration = new Vector();
+                
+                this.mass = m;
+			}
+			Mover.prototype.update = function () {
+				this.velocity.add(this.acceleration);
+				this.location.add(this.velocity);
+                this.acceleration.mult(0);
+			}
+		    Mover.prototype.applyForce = function (force) {
+		        var f = force.copy();
+		        f.div(this.mass);
+		        this.acceleration.add(f);
+		    }
+			Mover.prototype.checkEdges = function () {
+		        if (this.location.x + this.mass * 10  > canvas.width) {
+		          this.location.x = canvas.width - this.mass * 10;
+		          this.velocity.x *= -1/2;
+		        } else if (this.location.x < 0) {
+		          this.velocity.x *= -1/2;
+		          this.location.x = this.mass * 10 ;
+		        }
+
+		        if (this.location.y + this.mass * 10 > canvas.height) {
+		          this.velocity.y *= -1/2;
+		          this.location.y = canvas.height - this.mass * 10;
+		        } else if (this.location.y - this.mass * 10 < 0) {
+		        	this.velocity.y *= -1/2;
+		          this.location.y = this.mass * 10;
+		        }
+			}
+			Mover.prototype.display = function () {
+				drawCircle(this.location.x, this.location.y, this.mass*10);
+			}
+            Mover.prototype.attract = function (m) {
+            	var force = this.location.copy();
+            	force.sub(m.location);
+			    var distance = force.getMag();
+			    distance = constrain(distance, 5, 25);
+			    force.normalize();
+			 
+			    var strength = (1 * this.mass * m.mass) / (distance * distance);
+			    force.mult(strength);
+			    return force;
+            }
+
+			var movers = [];
+			for (var i = 0; i < 100; i++) {
+				movers.push(new Mover(random(0.2, 2)));
+			}
+
+			movers.push(new Mover(10, canvas.width/2, canvas.height/2));
+
+			function draw() {
+				for(var i = 0; i < movers.length; i++) {
+					for (var j = 0; j < movers.length; j++) {
+						var force = movers[j].attract(movers[i]);
+						force.div(5);
+						movers[i].applyForce(force);
+					}
+                    
+					movers[i].update();
+                    movers[i].display();
+					movers[i].checkEdges();
+				}
+			}
+
+			setInterval(function () {
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				draw();
+			}, 1000/60)
+
+			$(document).mousemove(function (e) {
+				mouseX = e.offsetX;
+				mouseY = e.offsetY;
+			})
+		</script>
+	</body>
+</html>

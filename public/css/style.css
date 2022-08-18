@@ -1,0 +1,119 @@
+@font-face {
+    font-family: 'Raleway';
+    src: url('Raleway/Raleway-Regular.ttf');
+}
+
+@font-face {
+    font-family: 'Raleway-Bold';
+    src: url('Raleway/Raleway-Bold.ttf');
+}
+body {
+    font-family: Raleway;
+    background-color: var(--background);
+}
+html {
+	user-select: none;
+
+	--background: rgba(51,51,51);
+	--background-contrast: rgba(33, 33, 33, 0.5);
+	--background-container: rgba(60, 60, 60);
+	--background-light: rgba(70, 70, 70);
+	--background-dark: rgba(15, 15, 15);
+
+	--navigation-height: 70px;
+
+	scroll-behavior: smooth;
+}
+
+.container {
+	color: white;
+	width: calc(100vw - (100vw - 100%));
+	margin: 0;
+	padding: 0;
+}
+
+.number {
+	color: grey;
+}
+
+#navigation {
+	position: absolute;
+	margin-top: 100vh;
+	width: 100%;
+	height: var(--navigation-height);
+	background-color: var(--background-contrast);
+	z-index: 4;
+}
+.logo { 
+	height: 100%;
+	vertical-align: middle;
+	display: inline-block;
+	margin-left: 1vh;
+}
+#logoPic {
+	position: absolute;
+	margin: auto;
+	border-radius: 50%; 
+	top: 0;
+	bottom: 0;
+	height: calc(var(--navigation-height)*0.8);
+}
+#navName {
+	position: absolute;
+	top: 0;
+	line-height: var(--navigation-height);
+	margin: auto;
+	color: white;
+	font-size: calc(var(--navigation-height)/3);
+	left: calc(2vh + var(--navigation-height)*0.8);
+}
+#menuButton {
+	display: none;
+	height: 5vh;
+}
+.route {
+	height: var(--navigation-height);
+	transition: height 0.5s;
+	transition-timing-function: ease;
+	float: left;
+	text-decoration-style: wavy;
+}
+.route:hover {
+	height: 1px;
+}
+.route span {
+	color: white;
+	line-height: var(--navigation-height);
+	font-size: calc(var(--navigation-height)/3);
+	padding: 0px 20px 0px 20px;
+	margin-bottom: 0px;
+}
+#contactme {
+	float: right;
+	margin-right: 5%;
+}
+
+.button {
+	background-color:#1c73ff;
+	-moz-border-radius:3px;
+	-webkit-border-radius:3px;
+	border-radius:3px;
+	border:1px solid #1c73ff;
+	display:inline-block;
+	cursor:pointer;
+	color:white;
+	font-family:Arial;
+	font-size:13px;
+	padding:6px 50px;
+	text-decoration:none;
+}
+
+#footer {
+	background: var(--background-dark);
+	width: 100%;
+	text-align: center;
+	height: 60px;
+	line-height: 60px;
+	color: white;
+	z-index: 1;
+}

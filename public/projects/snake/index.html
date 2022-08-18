@@ -1,0 +1,783 @@
+<html>
+	<head>
+		<title>Snake Neuralevolution</title>
+
+		<style>
+			canvas {
+				border: 1px solid black;
+				display: inline-block;
+			}
+
+			html {
+				background: grey;
+			}
+
+			p {
+				margin-top: 5px;
+				margin-bottom: 5px;
+			}
+		</style>
+	</head>
+	<body>
+		<div>
+			<canvas id="canvas" width="600" height="600"></canvas>
+			<div style="display: inline-block;">
+				<canvas id="stats" width="400" height="400"></canvas>
+			</div>
+
+			<button onclick="nextGeneration(snakes, Snake, saved)">Next Generation</button>
+
+			<p id="score">Current Score: 0</p>
+			<p id="highscore" style="display: inline-block;">Highscore: 0</p> <button id="resetHighscore">Reset</button>
+			<br />
+			<p id="generation" style="display: inline-block;">Generation: 1</p>
+		</div>
+
+		<script src="jquery.js"></script>
+		<script src="vector.js"></script>
+		<script src="matrix.js"></script>
+		<script src="nn.js"></script>
+		<script src="ga.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.js"></script>
+		<script>
+			var canvas = document.getElementById("canvas");
+			var ctx = canvas.getContext("2d");
+
+			var rows = 50;
+			var cols = 50;
+			var blocks = canvas.width / cols;
+
+			var cycles = 1;
+			var score = 0;
+			var highScore = 0;
+			var generation = 1; 
+
+			var population = 500;
+			var latest;
+			var generationHighest;
+			var highest;
+
+			// Charting statistics
+
+			var c = document.getElementById('stats').getContext('2d');
+
+			var generationAverage = 0;
+			var dataLimit = 1000;
+
+			var Chart = new Chart(c, {
+			    type: 'line',
+			    data: {
+		    		labels: [],
+	        		datasets: [{
+	            		label: "Snake Stats",
+	            		borderColor: 'rgb(255, 99, 132)',
+	            		data: [],
+	            		radius: 0
+	        		}]
+			    },
+			    options: {
+			    	responsive: false,
+			    	maintainAspectRatio: false,
+			    	scales: {
+						yAxes: [{
+					   		scaleLabel: {
+					        	display: true,
+					        	labelString: 'Generation Average Score'
+					    	},
+					    	ticks: {
+				                beginAtZero: true
+				            }
+						}],
+						xAxes: [{
+					   		scaleLabel: {
+					        	display: true,
+					        	labelString: 'Generation #'
+					    	}
+						}]
+					},
+					elements: {
+				        line: {
+				            tension: 0
+				        }
+				    }
+			    }
+			});
+
+			class Apple {
+				constructor (x, y) {
+					this.x = x;
+					this.y = y;
+				}
+
+				draw(color, alpha) {
+					ctx.globalAlpha = alpha || 1;
+					ctx.fillStyle = color || "red";
+					ctx.fillRect(this.x * blocks, this.y * blocks, blocks, blocks);
+					ctx.globalAlpha = 1;
+				}
+			}
+
+			class Snake {
+				constructor(x, y, brain) {
+					this.parts = [
+						{
+							x: x,
+							y: y
+						},
+						{
+							x: x-1,
+							y: y
+						},
+						{
+							x: x-2,
+							y: y
+						},
+						{
+							x: x-3,
+							y: y
+						},
+						{
+							x: x-4,
+							y: y
+						}
+					];
+					this.direction = 0;
+					this.appleDist = 0;
+					this.brain = new NeuralNetwork(6, 4, 3);
+
+					this.apple = new Apple(getRandomInt(0, cols-1), getRandomInt(0, rows-1));
+					this.digest = false;
+					this.length = 5;
+
+					this.applesEaten = 0;
+					this.score = 0;
+					this.fitness = 0;
+				}
+
+				draw() {
+					for (var i = 0; i < this.parts.length; i++) {
+						ctx.globalAlpha = 0.1;
+						ctx.fillStyle = "green";
+						ctx.fillRect(this.parts[i].x * blocks, this.parts[i].y * blocks, blocks, blocks);
+						ctx.globalAlpha = 1;
+					}
+				}
+
+				drawBest() {
+					for (var i = 0; i < this.parts.length; i++) {
+						ctx.fillStyle = "yellow";
+						ctx.fillRect(this.parts[i].x * blocks, this.parts[i].y * blocks, blocks, blocks);
+					}
+				}
+
+				move(direction) {
+					this.appleDist = Math.sqrt(Math.pow(this.apple.x - this.parts[0].x, 2) + Math.pow(this.apple.y - this.parts[0].y, 2));
+					var direction = direction;
+
+					// Change new direction into up, down, left, right
+
+					if (direction === 1) {
+						// Move forward
+						direction = this.direction;
+					} else if (direction === 0) {
+						switch(this.direction) {
+						    case 0:
+						        direction = 1;
+						        break;
+						    case 1:
+						        direction = 2;
+						        break;
+						    case 2:
+						        direction = 3;
+						        break;
+						    case 3:
+						        direction = 0;
+						        break;
+						}
+					} else if (direction === 2) {
+						switch(this.direction) {
+						    case 0:
+						        direction = 3;
+						        break;
+						    case 1:
+						        direction = 0;
+						        break;
+						    case 2:
+						        direction = 1;
+						        break;
+						    case 3:
+						        direction = 2;
+						        break;
+						}
+					}
+
+					// Move the snake based on direction
+
+					var newParts = [];
+					for (var i = 0; i < this.parts.length; i++) {
+						if (newParts.length === 0) {
+							var directionChosen = true;
+							while (directionChosen) {
+								if (direction === 0 && this.direction !== 2) {
+									newParts.push({
+										x: this.parts[i].x + 1,
+										y: this.parts[i].y
+									})
+									directionChosen = false;
+								} else if (direction === 1 && this.direction !== 3) {
+									newParts.push({
+										x: this.parts[i].x,
+										y: this.parts[i].y - 1
+									})
+									directionChosen = false;
+								} else if (direction === 2 && this.direction !== 0) {
+									newParts.push({
+										x: this.parts[i].x - 1,
+										y: this.parts[i].y
+									})
+									directionChosen = false;
+								} else if (direction === 3 && this.direction !== 1) {
+									newParts.push({
+										x: this.parts[i].x,
+										y: this.parts[i].y + 1
+									})
+									directionChosen = false;
+								} else {
+									direction = this.direction;
+								}
+							}
+						} else {
+							newParts.push({
+								x: this.parts[i - 1].x,
+								y: this.parts[i - 1].y
+							})
+
+							if (i === this.parts.length-1 && this.digest) {
+								newParts.push({
+									x: this.parts[i].x,
+									y: this.parts[i].y
+								})
+								this.digest = false;
+							}
+						}
+					}
+
+					this.parts = newParts;
+					this.direction = direction;
+
+					var newAppleDist = Math.sqrt(Math.pow(this.apple.x - this.parts[0].x, 2) + Math.pow(this.apple.y - this.parts[0].y, 2));
+					if (newAppleDist < this.appleDist) {
+						this.score += 1;
+					} else {
+						this.score -= 2;
+					}
+				}
+
+				think() {
+					var inputs = [0, 0, 0, 0, 0, 0]; 
+
+					// See if it's clear
+
+					for (var direction = 0; direction < 3; direction++) {
+						if (direction === 1) {
+							// Move forward
+							direction = this.direction;
+						} else if (direction === 0) {
+							switch(this.direction) {
+							    case 0:
+							        direction = 1;
+							        break;
+							    case 1:
+							        direction = 2;
+							        break;
+							    case 2:
+							        direction = 3;
+							        break;
+							    case 3:
+							        direction = 0;
+							        break;
+							}
+						} else if (direction === 2) {
+							switch(this.direction) {
+							    case 0:
+							        direction = 3;
+							        break;
+							    case 1:
+							        direction = 0;
+							        break;
+							    case 2:
+							        direction = 1;
+							        break;
+							    case 3:
+							        direction = 2;
+							        break;
+							}
+						}
+
+						// Move the snake based on direction
+
+						var newParts = [];
+						for (var i = 0; i < this.parts.length; i++) {
+							if (newParts.length === 0) {
+								var directionChosen = true;
+								while (directionChosen) {
+									if (direction === 0 && this.direction !== 2) {
+										newParts.push({
+											x: this.parts[i].x + 1,
+											y: this.parts[i].y
+										})
+										directionChosen = false;
+									} else if (direction === 1 && this.direction !== 3) {
+										newParts.push({
+											x: this.parts[i].x,
+											y: this.parts[i].y - 1
+										})
+										directionChosen = false;
+									} else if (direction === 2 && this.direction !== 0) {
+										newParts.push({
+											x: this.parts[i].x - 1,
+											y: this.parts[i].y
+										})
+										directionChosen = false;
+									} else if (direction === 3 && this.direction !== 1) {
+										newParts.push({
+											x: this.parts[i].x,
+											y: this.parts[i].y + 1
+										})
+										directionChosen = false;
+									} else {
+										direction = this.direction;
+									}
+								}
+							} else {
+								newParts.push({
+									x: this.parts[i - 1].x,
+									y: this.parts[i - 1].y
+								})
+							}
+						}
+
+						// Modified check collision for walls
+
+						if (newParts[0].x > cols -1 || newParts[0].x < 0 || newParts[0].y > rows -1 || newParts[0].y < 0) {
+
+							if (direction === 1) {
+								// Move forward
+								inputs[0] = 1;
+							} else if (direction === 0) {
+								inputs[1] = 1;
+							} else if (direction === 2) {
+								inputs[2] = 1;
+							}
+						}
+
+						// Check for body
+
+						for (var i = 0; i < this.parts.length-1; i++) {
+							var body = this.parts[i+1];
+							if (newParts[0].x === body.x && newParts[0].y === body.y) {
+								if (snakes.length === 1) {
+									//console.log("Hit");
+								}
+								
+								if (direction === 1) {
+									// Move forward
+									inputs[0] = 1;
+								} else if (direction === 0) {
+									inputs[1] = 1;
+								} else if (direction === 2) {
+									inputs[2] = 1;
+								}
+							}
+						}
+					}
+
+					switch(this.direction) {
+					    case 0:
+					        if (this.parts[0].x < this.apple.x) {
+					        	inputs[3] = 1;
+					        }
+
+					        if (this.parts[0].y > this.apple.y) {
+					        	inputs[4] = 1;
+					        } else if (this.parts[0].y < this.apple.y) {
+					        	inputs[5] = 1;
+					        }
+					        break;
+					    case 1:
+					        if (this.parts[0].y > this.apple.y) {
+					        	inputs[3] = 1;
+					        }
+
+					        if (this.parts[0].x > this.apple.x) {
+					        	inputs[4] = 1;
+					        } else if (this.parts[0].x < this.apple.x) {
+					        	inputs[5] = 1;
+					        }
+					        break;
+					    case 2:
+					        if (this.parts[0].x > this.apple.x) {
+					        	inputs[3] = 1;
+					        }
+
+					        if (this.parts[0].y < this.apple.y) {
+					        	inputs[4] = 1;
+					        } else if (this.parts[0].y > this.apple.y) {
+					        	inputs[5] = 1;
+					        }
+					        break;
+					    case 3:
+					        if (this.parts[0].y < this.apple.y) {
+					        	inputs[3] = 1;
+					        }
+
+					        if (this.parts[0].x < this.apple.x) {
+					        	inputs[4] = 1;
+					        } else if (this.parts[0].x > this.apple.x) {
+					        	inputs[5] = 1;
+					        }
+					        break;
+					}
+
+					/*inputs[0] = this.direction / 4;
+					inputs[1] = (cols - this.parts[0].x) / cols;
+					inputs[2] = (rows - this.parts[0].y) / rows;
+					inputs[3] = this.parts[0].x / cols; // Normalized x position
+					inputs[4] = this.parts[0].y / rows; // Normalized y position
+					inputs[5] = apple.x / cols;
+					inputs[6] = apple.y / rows;*/
+
+					var outputs = this.brain.feedForward(inputs);
+
+					return indexOfMax(outputs);
+				}
+
+				mutate() {
+					this.brain.mutate(0.01);
+				}
+			}
+
+			var snakes = [];
+			var saved = [];
+
+			for (var i = 0; i < population; i++) {
+				snakes.push(new Snake(20, 30));
+			}
+				
+			var saved = [];
+
+			function checkCollision() {
+				for (var i = 0; i < snakes.length; i++) {
+					var head = snakes[i].parts[0];
+					// Check collision with apple
+					if (head.x === snakes[i].apple.x && head.y === snakes[i].apple.y) {
+						// Snake eats apple
+						snakes[i].score += 50;
+						snakes[i].applesEaten++;
+						snakes[i].digest = true;
+						snakes[i].length++;
+
+						// Put the apple where the snake is obstructed by it
+
+						var wrongApple = false;
+						var apple = new Apple(getRandomInt(0, cols-1), getRandomInt(0, rows-1));
+
+						while (wrongApple) {
+							apple = new Apple(getRandomInt(0, cols-1), getRandomInt(0, rows-1));
+							var head = snakes[i].parts[0];
+
+							switch(snakes[i].direction) {
+							    case 0:
+							    	if (apple.x < head.x) {
+							    		wrongApple = false;
+							    	}
+							        break;
+							    case 1:
+							    	if (apple.y > head.y) {
+							    		wrongApple = false;
+							    	}
+							        break;
+							    case 2:
+							    	if (apple.x > head.x) {
+							    		wrongApple = false;
+							    	}
+							        break;
+							    case 3:
+							    	if (apple.y < head.y) {
+							    		wrongApple = false;
+							    	}
+							        break;
+							}
+						}
+						snakes[i].apple = apple;
+					}
+
+					// update the best snake
+
+					if (!latest) {
+						latest = snakes[i];
+						generationHighest = snakes[i];
+					} else {
+						if (snakes[i].score > latest.score) {
+							latest = snakes[i];
+							generationHighest = snakes[i];
+						}
+
+						if (!highest) {
+							highest = latest;
+						} else if (latest.score > highest.score) {
+							highest = latest;
+						}
+
+						score = latest.score;
+						highScore = highest.score;
+					}
+
+					// Check collision with wall
+
+					var dead = false;
+
+					if (head.x > cols -1 || head.x < 0 || head.y > rows -1 || head.y < 0) {
+						dead = true;
+					}
+
+					// Check collision with itself
+
+					var snake = snakes[i];
+
+					if (snake && snake.parts) {
+						for (var j = 0; j < snake.parts.length-1; j++) {
+							var body = snake.parts[j+1];
+							if (body) {
+								if (head.x === body.x && head.y === body.y) {
+									dead = true;
+								}
+							}
+						}
+					}
+
+					// Check if it's score is below threshold
+
+					if (snake.score < -50) {
+						dead = true;
+					}
+
+					if (dead) {
+						// Remove the snake if it is the latest snake
+						if (latest.score === snakes[i].score) {
+							latest = undefined;
+						}
+						var deadCount = population + 1 - snakes.length;
+
+						generationAverage = generationAverage*(deadCount-1);
+						generationAverage += snakes[i].applesEaten;
+						generationAverage = generationAverage/deadCount;
+
+						saved.push(snakes.splice(i, 1)[0]);
+					}
+				}
+			}
+
+			function update() {
+				rows = canvas.height / blocks;
+				cols = canvas.width / blocks;
+
+				for (var i = 0; i < snakes.length; i++) {
+					var direction = snakes[i].think();
+					snakes[i].move(direction);
+				}
+
+				checkCollision();
+
+				if (snakes.length === 0) {
+					nextGeneration(snakes, Snake, saved, latest);
+				}
+			}
+
+			function draw() {
+				ctx.fillStyle = "white";
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+				for (var i = 0; i < snakes.length; i++) {
+					snakes[i].draw();
+
+					if (latest && snakes[i].score !== latest.score) {
+						snakes[i].apple.draw("green", 0.1);
+					}
+				}
+
+				if (latest) {
+					latest.apple.draw();
+					latest.drawBest();
+				}
+
+				$("#score").text("Current Score: " + score);
+				$("#highscore").text("Highscore: " + highScore);
+				$("#generation").text("Generation: " + generation);
+			}
+
+			var FPS = 29;
+			function optimize() {
+				if (FPS !== 29) {
+					if (averageArray > parseInt($("#fpsSlider")[0].value)) {
+						if ($("#cycleSlider")[0].value < 100) {
+							$("#cycleSlider").val(parseInt($("#cycleSlider").val()) + 1) ;
+							$("#cycleText").text($("#cycleSlider")[0].value);
+							cycles = parseInt($("#cycleSlider")[0].value);
+						}
+					} else if (averageArray < parseInt($("#fpsSlider")[0].value)) {
+						if ($("#cycleSlider")[0].value > 1) {
+							$("#cycleSlider").val(parseInt($("#cycleSlider").val()) - 1) ;
+							$("#cycleText").text($("#cycleSlider")[0].value);
+							cycles = parseInt($("#cycleSlider")[0].value);
+						}
+					}
+				}
+			}
+		       
+		    loop();
+
+		    // Frames optimizer
+
+	        var fps = 1000;
+	        var now;
+	        var then = Date.now();
+	        var interval = 1000/fps;
+	        var delta;
+	        var fpsArray = [];
+	        var averageArray;
+
+		    function loop(code) {
+		        requestAnimationFrame(loop);
+		           
+		        now = Date.now();
+		        delta = now - then;
+		           
+		        if (delta > interval) {
+		               
+		            then = now - (delta % interval);
+		            ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+		            // Run the code
+		            for (var i = 0; i < cycles; i++) {
+		            	update();
+		            }
+		    		draw();
+		    		optimize();
+
+		            // Get average frames per second with a 30 frame buffer
+		              
+		            fpsArray.push(1000/delta);
+		            if (fpsArray.length > 30) {
+		                fpsArray.shift();
+		            }
+		              
+		            averageArray = fpsArray.reduce((a, b) => a + b, 0)/fpsArray.length;
+
+		            // Draw the framerate top left of screen
+		            ctx.beginPath();
+		            ctx.font = "50px Arial";
+		            ctx.fillStyle = "red";
+		            ctx.fillText(Math.floor(averageArray), 20, 50);
+		            ctx.closePath();
+		              
+		        }
+		    }
+
+		    $("#resetHighscore").click(function () {
+		    	highScore = 0;
+		    })
+
+		    $('body').on('click', '[data-editable]', function(){
+			  
+			  var $el = $(this);
+
+			  var id = $el[0].id;
+			  var idName = id.replace('Text', '');
+
+			  console.log($el);
+			              
+			  var $input = $('<input/>').val( $el.text() );
+			  $el.replaceWith( $input );
+			  
+			  var save = function(){
+			    var $p = $('<p id=' + id + ' style="display: inline-block;" data-editable />').text( $input.val() );
+			    $("#" + idName + "Slider")[0].value = $input.val();
+			    population = $input.val();
+			    if (population === 0) {
+		    		population = 1;
+		    	}
+		    	$("#populationSlider")[0].value = population / 20;
+		    	$("#populationText").text(population);
+			    $input.replaceWith( $p );
+			  };
+			  
+			  /**
+			    We're defining the callback with `one`, because we know that
+			    the element will be gone just after that, and we don't want 
+			    any callbacks leftovers take memory. 
+			    Next time `p` turns into `input` this single callback 
+			    will be applied again.
+			  */
+			  $input.one('blur', save).focus();
+			  $input.on('keyup', function (e) {
+			    if (e.keyCode == 13) {
+			        save();
+			    }
+			});
+			  
+			});
+
+		    function getRandomInt(min, max) {
+			    return Math.floor(Math.random() * (max - min + 1)) + min;
+			}
+
+			function rectCircleColliding(circle,rect){
+			    var distX = Math.abs(circle.x - rect.x-rect.width/2);
+			    var distY = Math.abs(circle.y - rect.y-rect.height/2);
+
+			    if (distX > (rect.width/2 + circle.r)) { return false; }
+			    if (distY > (rect.height/2 + circle.r)) { return false; }
+
+			    if (distX <= (rect.width/2)) { return true; } 
+			    if (distY <= (rect.height/2)) { return true; }
+
+			    var dx=distX-rect.width/2;
+			    var dy=distY-rect.height/2;
+			    return (dx*dx+dy*dy<=(circle.r*circle.r));
+			}
+
+			function addData(chart, label, data, maximumLength) {
+			    chart.data.labels.push(label);
+			    chart.data.datasets.forEach((dataset) => {
+			        dataset.data.push(data);
+			        if (dataset.data.length > maximumLength) {
+				    	dataset.data.shift();
+				    }
+			    });
+			    if (chart.data.labels.length > maximumLength) {
+			    	chart.data.labels.shift();
+			    }
+			    chart.update();
+			}
+
+			function indexOfMax(arr) {
+			    if (arr.length === 0) {
+			        return -1;
+			    }
+
+			    var max = arr[0];
+			    var maxIndex = 0;
+
+			    for (var i = 1; i < arr.length; i++) {
+			        if (arr[i] > max) {
+			            maxIndex = i;
+			            max = arr[i];
+			        }
+			    }
+
+			    return maxIndex;
+			}
+		</script>
+	</body>
+</html>

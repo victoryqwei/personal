@@ -1,0 +1,405 @@
+<html>
+	<head>
+		<title>Pool</title>
+
+		<style>
+			body { margin: 0; overflow: hidden}
+			canvas {
+				border: 1px solid black;
+				display: inline-block;
+				margin: 0;
+			}
+		</style>
+
+		<link rel="stylesheet" type="text/css" href="style.css">
+	</head>
+	<body>
+		
+
+		<canvas id="canvas" width="1000" height="400"></canvas>
+
+		<script src="javascripts/math.min.js"></script>
+
+		<script src="javascripts/jquery.js"></script>
+		<script src="javascripts/vector.js"></script>
+		<script src="javascripts/helper.js"></script>
+		<script>
+			var canvas = document.getElementById("canvas");
+			var ctx = canvas.getContext("2d");
+
+			// Setup game canvas
+			canvas.width = window.innerWidth;
+			canvas.height = canvas.width/2;
+			if (canvas.height > window.innerHeight) {
+				canvas.height = window.innerHeight;
+				canvas.width = canvas.height*2;
+			}
+			let width = canvas.width;
+			let height = canvas.height;
+
+			let originalWidth = canvas.width;
+			let originalRatio = canvas.width/1366;
+
+			let ballRadius = 20*originalRatio;
+			let maxHitPower = 30;
+			let zoom = 1;
+			let poolBorder = 100;
+
+			class Ball {
+				constructor(x, y, number, color) {
+					this.number = number;
+					this.color = color;
+
+					let margin = 10;
+					this.pos = new Vector(x || random(canvas.width, 0), y || random(canvas.height, 0));
+					this.vel = new Vector();
+
+					this.angle = Math.PI/2;
+					this.angularVel = 0;
+
+					this.hitVector = new Vector();
+
+					this.radius = ballRadius;
+					this.mass = 1;
+
+					this.selected = false;
+					this.collided = false;
+
+					this.frictionCoefficient = 0.995;
+					this.hitCoefficient = 0.1;
+					this.spinConstant = 0.001
+				}
+
+				draw() {
+					ctx.save();
+					ctx.translate(this.pos.x*zoom, this.pos.y*zoom)
+					let r = this.radius * zoom;
+
+					ctx.rotate(this.angle);
+					if (this.number > 8) {
+						drawCircle(0, 0, r, 1, "white", true)
+						ctx.clip();
+						drawRectCenter(0, 0, r*2, r*5/4, this.color)
+					} else {
+						drawCircle(0, 0, r, 1, this.color);
+					}
+					
+					drawCircle(0, 0, r/2 , 1, "white");
+					drawText(this.number, 0, 0, "15px Arial", "black", "center", "middle")
+					ctx.restore();
+		
+				}
+
+				update() {
+					this.pos.x += this.vel.x/2;
+					this.pos.y += this.vel.y/2;
+
+					this.vel.setMag(this.vel.getMag()*this.frictionCoefficient)
+
+					this.angularVel *= this.frictionCoefficient;
+					this.angle += this.angularVel;
+				}
+			}
+
+			var balls = [];
+			var mouseSelect = false;
+
+			let o = 0.02; // Offset
+			var bPos = [
+				[0, -2],
+				[0, -1],
+				[0, 0],
+				[0, 1],
+				[0, 2],
+				[1, -1.5],
+				[1, -0.5],
+				[1, 0.5],
+				[1, 1.5],
+				[2, -1],
+				[2, 0],
+				[2, 1],
+				[3, -0.5],
+				[3, 0.5],
+				[4, 0]
+			]
+
+			var bColor = ["yellow", "blue", "red", "purple", "orange", "green", "#800020", "black", "yellow", "blue", "red", "purple", "orange", "green", "#800020"]
+
+			for (var i = 0; i < 15; i++) {
+				balls.push(new Ball((bPos[i][0] + o*bPos[i][0])*ballRadius*2+canvas.width/3, (bPos[i][1] + o*bPos[i][1])*ballRadius*2+canvas.height/2, i+1, bColor[i]));
+			}
+
+			/*for (var i = 0; i < 100; i++) {
+				balls.push(new Ball());
+			}*/
+
+			balls.push(new Ball(canvas.width*2/3, canvas.height/2, 0, "#fffff0"));
+
+			function releaseStick() {
+				// Move ball
+				for (let b of balls) {
+					if (b.selected && b.hitVector.getMag() > 0) {
+						b.vel = b.hitVector.copy();
+						b.vel.div(zoom);
+						b.vel.mult(b.hitCoefficient);
+						b.vel.setMag(constrain(b.vel.getMag(), 0, maxHitPower));
+
+						console.log("Released at:", b.vel.getMag())
+					}
+				}
+
+				// Reset mouse selection
+				for (let b of balls) {
+					b.selected = false;
+					b.hitVector = new Vector();
+				}
+				mouseSelect = false;
+			}
+
+			function checkCollision() {
+				for (let i = balls.length-1; i >= 0; i--) {
+					if (balls[i].hole) {
+						balls.splice(i, 1);
+					}
+					balls[i].collided = false;
+				}
+
+				for (let b of balls) {
+					// Hole detection
+					var holePositions = [
+						new Vector(poolBorder*originalRatio*zoom/2, poolBorder*originalRatio*zoom/2),
+						new Vector(poolBorder*originalRatio*zoom/2, height - poolBorder*originalRatio*zoom/2),
+						new Vector(width/2, poolBorder*originalRatio*zoom/2),
+						new Vector(width/2, height - poolBorder*originalRatio*zoom/2),
+						new Vector(width - poolBorder*originalRatio*zoom/2, poolBorder*originalRatio*zoom/2),
+						new Vector(width - poolBorder*originalRatio*zoom/2, height - poolBorder*originalRatio*zoom/2)
+					]
+
+					for (let hPos of holePositions) {
+						var distance = Vector.sub(hPos, b.pos);
+						if (distance.getMag() < b.radius*2) {
+							b.hole = true;
+						}
+					}
+
+					// Wall collision
+					if (b.pos.x + b.radius > width - poolBorder*originalRatio*zoom/2 || b.pos.x - b.radius < poolBorder*originalRatio*zoom/2) {
+						b.vel.x = -b.vel.x;
+					}
+					if (b.pos.y + b.radius > height - poolBorder*originalRatio*zoom/2 || b.pos.y - b.radius < poolBorder*originalRatio*zoom/2) {
+						b.vel.y = -b.vel.y;
+					}
+
+					for (let b2 of balls) {
+						if (b.pos.x != b2.pos.x && b.pos.y != b2.pos.y && !b.collided && !b2.collided) {
+							let collision = Vector.sub(b.pos, b2.pos);
+							if (collision.getMag() < b.radius + b2.radius) { // Check if the two balls are colliding
+								// Resolve the collision normal
+								var colNorm = collision.copy();
+								colNorm.normalize();
+
+								// Check if balls are sticking together
+								var relVel = Vector.sub(b.vel, b2.vel);
+								if (Vector.dot(relVel, colNorm) > 0)
+									continue;
+								
+								var colTang = new Vector(-colNorm.y, colNorm.x); // Collision tangent
+
+								var res = 0.9; // Restitution
+
+								// Scalar dot products
+								var v1n = Vector.dot(colNorm, b.vel);
+								var v1t = Vector.dot(colTang, b.vel);
+
+								var v2n = Vector.dot(colNorm, b2.vel);
+								var v2t = Vector.dot(colTang, b2.vel);
+
+								var v1n_ = (res * (v1n * (b.mass-b2.mass)) + v2n*2*b2.mass)/(b.mass+b2.mass)
+								var v2n_ = (res * (v2n * (b2.mass-b.mass)) + v1n*2*b.mass)/(b.mass+b2.mass);
+
+								v1n_ = Vector.mult(colNorm, v1n_);
+								v2n_ = Vector.mult(colNorm, v2n_);
+
+								v1t_ = Vector.mult(colTang, v1t);
+								v2t_ = Vector.mult(colTang, v2t);
+
+								b.vel = Vector.add(v1n_, v1t_);
+								b2.vel = Vector.add(v2n_, v2t_);
+
+								b.angularVel = b.angularVel + Vector.dot(relVel, colTang) * b.spinConstant
+								b2.angularVel = b2.angularVel - Vector.dot(relVel, colTang) * b.spinConstant
+
+								b.collided = true;
+								b2.collided = true;
+							}
+						}
+							
+					}
+				}
+			}
+
+			function drawTable() {
+				let border = poolBorder*originalRatio*zoom
+				// Draw pool table
+				ctx.beginPath();
+				ctx.fillStyle = "#36594a";
+				ctx.rect(0, 0, canvas.width, canvas.height)
+				ctx.fill()
+				ctx.strokeStyle = "brown";
+				ctx.lineWidth = border;
+				ctx.stroke();
+				ctx.closePath();
+
+				drawCircle(border/2*5/4, border/2*5/4, border/4*5/4, 1, "black");
+				drawCircle(border/2*5/4, canvas.height-border/2*5/4, border/4*5/4, 1, "black");
+				drawCircle(canvas.width-border/2*5/4, border/2*5/4, border/4*5/4, 1, "black");
+				drawCircle(canvas.width-border/2*5/4, canvas.height-border/2*5/4, border/4*5/4, 1, "black");
+
+				drawCircle(canvas.width/2, border/2, border/4*5/4, 1, "black");
+				drawCircle(canvas.width/2, canvas.height-border/2, border/4*5/4, 1, "black");
+			}
+
+			function update() {
+				// Select ball using mouse
+				if (mouse.left && !mouseSelect) {
+					for (var b of balls) {
+						let ballPos = b.pos.copy();
+						ballPos.mult(zoom);
+						var collision = Vector.sub(new Vector(mouse.x, mouse.y), ballPos)
+						if (b.number === 0 && collision.getMag() < b.radius) {
+							b.selected = true;
+							mouseSelect = true;
+						}
+					}
+				}
+
+				// Update ball position based on their velocities
+				for (var b of balls) {
+					b.update();
+				}
+
+				// Check collision
+				checkCollision();
+			}
+
+			function draw() {
+				drawTable();
+
+				for (var b of balls) {
+					b.draw();
+					if (b.selected) {
+						b.hitVector = b.pos.copy();
+						b.hitVector.mult(zoom)
+						b.hitVector.sub(new Vector(mouse.x, mouse.y));
+						b.hitVector.setMag(constrain(b.hitVector.getMag()*b.hitCoefficient, 0, maxHitPower)/b.hitCoefficient)
+
+						drawArrow(b.pos.x*zoom, b.pos.y*zoom, b.pos.x*zoom + b.hitVector.x, b.pos.y*zoom + b.hitVector.y, 2, "black");
+					}
+				}
+			}
+
+			// Update loop
+			var hz = 100;
+			setInterval(function () {
+				for (var i = 0; i < 1; i++) {
+					update();
+				}
+			}, 1000/hz)
+			
+			// Stats
+
+			var fps = 1000;
+			var now;
+			var then = Date.now();
+			var interval = 1000/fps;
+			var delta, dt;
+
+			var fpsArray, speedArray;
+			fpsArray = [];
+			speedArray = [];
+
+			// Draw loop
+
+			function loop() {
+				requestAnimationFrame(loop);
+
+				now = Date.now();
+				delta = now - then;
+				dt = delta/1000;
+
+				if (delta > interval) {
+					then = now - (delta % interval);
+
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+					draw();
+
+					// Get average frames per second with a 30 frame buffer
+		              
+		            fpsArray.push(1000/delta);
+		            if (fpsArray.length > 30) {
+		                fpsArray.shift();
+		            }
+		              
+		            averageArray = fpsArray.reduce((a, b) => a + b, 0)/fpsArray.length;
+
+		            // Draw the framerate top left of screen
+		            ctx.beginPath();
+		            ctx.font = "50px Arial";
+		            ctx.fillStyle = "red";
+		            ctx.fillText(Math.floor(averageArray), 20, 50);
+		            ctx.closePath();
+				}
+			}
+			loop();
+
+		    var map = {};
+			onkeydown = onkeyup = function(e){
+			    e = e || event; 
+			    map[e.keyCode] = e.type == 'keydown';
+			}
+
+			var mouse = new Vector();
+			$(document).on("mousemove", function (e) {
+				mouse.x = e.offsetX;
+				mouse.y = e.offsetY;
+			})
+
+			$(document).on('mousedown', function (e) {
+				if (e.which == 1) {
+					mouse.left = true;
+				} else if (e.which == 2) {
+					mouse.middle = true;
+				} else if (e.which == 3) {
+					mouse.right = true;
+				}
+				e.preventDefault();
+			}).on('mouseup', function (e) {
+				if (e.which == 1) {
+					mouse.left = false;
+				} else if (e.which == 2) {
+					mouse.middle = false;
+				} else if (e.which == 3) {
+					mouse.right = false;
+				}
+				e.preventDefault();
+
+				releaseStick();
+			})
+
+			window.oncontextmenu = function () {
+				return false;
+			}
+
+			$(window).resize(function () {
+				canvas.width = window.innerWidth;
+				canvas.height = canvas.width/2;
+				if (canvas.height > window.innerHeight) {
+					canvas.height = window.innerHeight;
+					canvas.width = canvas.height*2;
+				}
+
+				zoom = canvas.width / originalWidth;
+			})
+		</script>
+	</body>
+</html>

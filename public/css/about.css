@@ -1,0 +1,54 @@
+#about-container {
+	position: relative;
+	display: flex;
+	margin: 0 auto;
+	background-color: var(--background-container);
+	width: 90%;
+	max-width: 1000px;
+	padding: 20px;
+	text-align: left;
+	margin-bottom: 20px;
+}
+#about-holder {
+	display: block;
+	text-align: center;
+	width:100%;
+	background-color: var(--background);
+	padding-top: 20px;
+}
+
+#pfp {
+	width: 400px;
+}
+
+#about-text {
+	margin-left: 20px;
+	font-size: 20px;
+}
+
+a {
+	color: inherit;
+}
+
+a:hover {
+	color: inherit;
+}
+
+.resume-button {
+	position: absolute;
+	right: 20px;
+	bottom: 20px;
+	background-color: rgb(75, 75, 75);
+	margin: 0;
+	border: 0;
+	padding: 15px;
+	text-decoration: none;
+}
+.resume-button:hover {
+	background-color: rgb(100, 100, 100);
+}
+.resume-button:focus {outline:0;}
+
+#skills-button {
+	right: 120px;
+}

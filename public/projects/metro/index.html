@@ -1,0 +1,192 @@
+<html>
+    <head>
+        <title>Metro</title>
+
+        <style>
+            body { margin: 0; overflow: hidden}
+            canvas {
+                border: 1px solid black;
+                display: inline-block;
+                margin: 0;
+            }
+        </style>
+
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+    <body>
+
+        <canvas id="canvas" width="1000" height="400"></canvas>
+
+        <script src="javascripts/lib/jquery.js"></script>
+        <script src="javascripts/lib/vector.js"></script>
+        <script src="javascripts/lib/util.js"></script>
+
+        <script src="javascripts/game/Camera.js"></script>
+        <script src="javascripts/game/Bus.js"></script>
+        <script src="javascripts/game/Network.js"></script>
+        <script src="javascripts/game/Station.js"></script>
+        <script src="javascripts/game/Passenger.js"></script>
+        <script src="javascripts/game/Graph.js"></script>
+        <script src="javascripts/game/Line.js"></script>
+        <script src="javascripts/game/Game.js"></script>
+        <script src="javascripts/game/input.js"></script>
+        <script>
+            let canvas = document.getElementById("canvas");
+            let ctx = canvas.getContext("2d");
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            // Settings
+            let zoom = 1;
+            let mapSize = 500;
+            let prevZoom = zoom;
+            let gridBlockSize = 40;
+
+            let oldCamera = new Vector();
+            let camera = new Vector();
+
+            function nodeInScreen(pos, radius,camera, zoom) {
+                var pos = nodeToScreen(pos, camera, zoom);
+                var radius = radius || 0;
+                return pos.x > -radius && pos.x < canvas.width + radius && pos.y > -radius && pos.y < canvas.height + radius;
+            }
+
+            function inScreen(pos, radius) {
+                var radius = radius || 0;
+                return pos.x > -radius && pos.x < canvas.width + radius && pos.y > -radius && pos.y < canvas.height + radius;
+            }
+
+            function nodeToScreen(xPos, yPos, camera, zoom) {
+                if (xPos instanceof Vector) {
+                    return new Vector(((xPos.x+0.5)*gridBlockSize-yPos.x)*camera, ((xPos.y+0.5)*gridBlockSize-yPos.y)*camera);
+                } else {
+                    return new Vector(((xPos+0.5)*gridBlockSize-camera.x)*zoom, ((yPos+0.5)*gridBlockSize-camera.y)*zoom);
+                }
+            }
+
+            function screenToNode(xPos, yPos, camera, zoom) {
+                if (xPos instanceof Vector) {
+                    if (zoom) {
+                        return new Vector(
+                       (((xPos.x)/camera-gridBlockSize/2)+yPos.x)/gridBlockSize+0.5, (((xPos.y)/camera-gridBlockSize/2)+yPos.y)/gridBlockSize+0.5);
+                    } else {
+                        return new Vector(
+                        Math.floor((((xPos.x)/camera-gridBlockSize/2)+yPos.x)/gridBlockSize+0.5), Math.floor((((xPos.y)/camera-gridBlockSize/2)+yPos.y)/gridBlockSize+0.5));
+                    }
+                    
+                } else {
+                    return new Vector(((xPos/zoom)+camera.x)/gridBlockSize-0.5, ((yPos/zoom)+camera.y)/gridBlockSize-0.5);
+                }
+            }
+
+            function posToString(pos) {
+                if (typeof pos == "string") // Already string
+                    return pos;
+                return (pos.x + "," + pos.y);
+            }
+
+            function stringToPos(string) {
+                if (string instanceof Vector) // Already vector
+                    return string;
+                let pos = string.split(",");
+                return new Vector(parseInt(pos[0]), parseInt(pos[1]));
+            }
+
+            function exists(pos, nodes) {
+                for (let i = 0; i < nodes.length; i++) {
+                    let node = nodes[i];
+                    if ((node.x == pos.x && node.y == pos.y) || node == pos)
+                        return i;
+                }
+            }
+
+            function stringExists(pos, nodes) {
+                if (!nodes)
+                    return;
+                for (let node of nodes) {
+                    if (node == pos)
+                        return node;
+                }
+            }
+
+            function drawGridLines() {
+
+                for (let i = 0; i < canvas.width/zoom/gridBlockSize + 1; i++) {
+                    let xPos = (i*gridBlockSize-camera.x%gridBlockSize)*zoom;
+                    drawLine(xPos, 0, xPos, canvas.height, 1, "black", 0.2)
+                }
+
+                for (let j = 0; j < canvas.height/zoom/gridBlockSize + 1; j++) {
+                    let yPos = (j*gridBlockSize-camera.y%gridBlockSize)*zoom;
+                    drawLine(0, yPos, canvas.width, yPos, 1, "black", 0.2)
+                }
+
+            }
+
+            let game = new Game();
+
+            function update() {
+
+                moveGrid();
+
+                game.update();
+            }
+
+            function draw() {
+
+                // Draw background
+                drawGridLines();
+
+                game.animate();
+
+                drawText(round(camera.x, 1) + " " + round(camera.y, 1), 10, 10, undefined, "lime", "left", "top")
+
+                drawText(round(mouse.x, 1) + " " + round(mouse.y, 1), 10, 30, undefined, "lime", "left", "top")
+
+                drawText(round(zoom, 2), 10, 50, undefined, "lime", "left", "top")
+
+                let nodePos = screenToNode(mouse, camera, zoom);
+                drawText(round(nodePos.x, 1) + " " + round(nodePos.y, 1), 10, 70, undefined, "lime", "left", "top")
+
+                drawText(round(averageFps, 1), 10, 90, undefined, "lime", "left", "top")
+            }
+
+            // Stats
+
+            let fps = 1000;
+            let now;
+            let then = Date.now();
+            let interval = 1000/fps;
+            let delta, dt;
+
+            let fpsArray, averageFps;
+            fpsArray = [];
+
+            // Game loop
+
+            function loop() {
+                requestAnimationFrame(loop);
+
+                now = Date.now();
+                delta = now - then;
+                dt = delta/1000;
+
+                if (delta > interval) {
+                    then = now - (delta % interval);
+
+                    fpsArray.push(1000/delta);
+                    if (fpsArray.length > 100) {
+                        fpsArray.shift();
+                    }
+                    averageFps = calculateAverage(fpsArray)
+
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    update();
+                    draw();
+                       
+                }
+            }
+            loop();
+        </script>
+    </body>
+</html>

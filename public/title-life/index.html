@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>Game Of Life</title>
+		<style>
+			body { margin: 0; overflow: hidden}
+			canvas {
+				border: solid black 1px;
+			}
+
+      #type {
+        position: absolute;
+        left: 2vh;
+        top: 2vh;
+        z-index: 1;
+      }
+
+      #type {
+        border: 6px solid transparent;
+        border-color: #fff transparent transparent transparent;
+      }
+
+      /* Style the arrow inside the select element: */
+      #type:after {
+        position: absolute;
+        content: "";
+        top: 14px;
+        right: 10px;
+        width: 0;
+        height: 0;
+        border: 6px solid transparent;
+        border-color: #fff transparent transparent transparent;
+      }
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas"></canvas>
+    <select id="type">
+       <option value="0" selected>Original</option>
+       <option value="1" >High life</option>
+       <option value="2" >Assimilation</option>
+       <option value="3" >2 x 2</option>
+       <option value="4" >Day and Night</option>
+       <option value="5" >Amoeba</option>
+       <option value="6" >Move</option>
+       <option value="7" >Pseudo Life</option>
+       <option value="8" >Diamoeba</option>
+       <option value="9" >34</option>
+       <option value="10" >Long Life</option>
+       <option value="11" >Stains</option>
+       <option value="12" >Seeds</option>
+       <option value="13" >Maze</option>
+       <option value="14" >Coagulations</option>
+       <option value="15" >Gnarl</option>
+       <option value="16" >Replicator</option>
+       <option value="17" >Mystery</option>
+       <option value="18" >Star Wars</option>
+       <option value="19" >Living on the Edge</option>
+       <option value="20" >Brian 6</option>
+       <option value="21" >Frogs</option>
+       <option value="22" >Frogs v2</option>
+    </select>
+
+		<script src="jquery.js"></script>
+		<script src="vector.js"></script>
+		<script src="functions.js"></script>
+		
+		<script>
+			var canvas = document.getElementById("canvas");
+			var ctx = canvas.getContext("2d");
+            
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      $(window).resize(function () {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      })
+
+			var mouseX, mouseY;
+
+			var board = [];
+      var cellWidth = 5;
+      
+      var rules = [
+        "23/3", // Game of life [0]
+        "23/36", // High life [1]
+        "4567/345", // Assimilation [2]
+        "125/36", // 2 x 2 [3]
+        "34578/3678", // Day and Night [4]
+        "1358/357", // Amoeba [5]
+        "245/368", // Move [6]
+        "238/357", // Pseudo Life [7]
+        "5678/35678", // Diamoeba [8]
+        "34/34", // 34 [9]
+        "5/345", // Long Life [10]
+        "235678/3678", // Stains [11]
+        "/2", // Seeds [12]
+        "12345/3", // Maze [13]
+        "235678/378", // Coagulations [14]
+        "1/1", // Gnarl [15]
+        "1357/1357", // Replicator [16]
+        "05678/3458", // Mystery [17]
+        "3456/278/6", // Star Wars [18]
+        "3458/37/4", // Living on the Edge [19]
+        "6/246/3", // Brian 6 [20]
+        "12/34/3", // Frogs [21]
+        "124/3/3" // Like Frogs Rule [22]
+      ]
+      var ruleString = rules[0] // Survive / Birth / Death (rulestring)
+
+      var death = false;
+      var cycles = 1;
+
+      var birthRuleString = ruleString.substr(ruleString.indexOf('/')+1, ruleString.length);
+      var surviveRuleString = ruleString.substr(0, ruleString.indexOf('/'));
+      var deathRuleString;
+      if ((ruleString.match(new RegExp("/", "g")) || []).length > 1) {
+        deathRuleString = birthRuleString.substr(birthRuleString.indexOf('/')+1, birthRuleString.length);
+        birthRuleString = birthRuleString.substr(0, birthRuleString.indexOf('/'));
+        death = true;
+      }
+
+      class Cell {
+        constructor(state) {
+          this.state = state || 0;
+          this.prevState = undefined;
+          this.nextState = 0;
+          this.neighbours = [];
+          this.neighbourCount = 0;
+
+          if (!death) {
+            this.deathCount = 0;
+          } else {
+            this.deathCount = parseInt(ruleString.substr(ruleString.lastIndexOf("/")+1, ruleString.length));
+          }
+
+          this.dying = false;
+          this.water = false;
+        }
+
+        resetNext() {
+          this.nextState = 0;
+          this.nextDying = false;
+          if (!death) {
+            this.deathCount = 0;
+          } else {
+            this.deathCount = parseInt(ruleString.substr(ruleString.lastIndexOf("/")+1, ruleString.length));
+          }
+        }
+
+        getNeighbours() {
+          // Get the cells neighbours
+          var neighbours = 0;
+
+          for (var i = 0; i < this.neighbours.length; i++) {
+            neighbours += this.neighbours[i].state;
+          }
+          this.neighbourCount = neighbours;
+        }
+
+        prepare(board) {
+          // Birth / Create new cell
+          for (var i = 0; i < birthRuleString.length; i++) {
+            var dead = this.state == 0;
+            var neighbourRule = this.neighbourCount == parseInt(birthRuleString[i]);
+            var notDying = this.dying === false;
+            if (dead && neighbourRule && notDying) {
+              this.nextState = 1;
+            }
+          }
+
+          // Survive / Keep on living if on land / Death
+          var die = true;
+
+          for (var i = 0; i < surviveRuleString.length; i++) {
+            var alive = this.state == 1
+            var neighbourRule = this.neighbourCount == parseInt(surviveRuleString[i])
+            var notDying = this.dying === false;
+            if (alive && neighbourRule && notDying) {
+              this.nextState = this.state;
+              die = false;
+            }
+          }
+
+          // Death
+          /*var die = true;
+          for (var i = 0; i < surviveRuleString.length; i++) {
+            var alive = this.state == 1
+            var neighbourRule = neighbours == parseInt(surviveRuleString[i])
+            var notDying = this.dying === false;
+            if (alive && neighbourRule && notDying) {
+              
+            }
+          }*/
+
+          if (die && this.state == 1) {
+            this.nextDying = true;
+            if (this.deathCount === 0) {
+              this.nextState = 0;
+              this.nextDying = false;
+            } else {
+              this.nextDeathCount -= 1;
+            }
+          }
+        }
+
+        update() {
+          if (!this.water) {
+            this.prevState = this.state;
+            this.state = this.nextState;
+            this.dying = this.nextDying;
+            this.deathCount = this.nextDeathCount;
+          } else {
+            this.state = 0;
+          }
+        }
+
+        draw(x, y) {
+          // Check for changes in state
+          if (!this.water) {
+            // Draw new cell state
+            ctx.globalAlpha = 0.7;
+            if (this.state === 1) {
+              ctx.fillStyle = "red";
+              ctx.fillRect(x*cellWidth, y*cellWidth, cellWidth, cellWidth);
+            } else if (this.dying) {
+              ctx.fillStyle = "orange";
+              ctx.fillRect(x*cellWidth, y*cellWidth, cellWidth, cellWidth);
+            }
+            ctx.globalAlpha = 1;
+          }
+        }
+      }
+
+      function init() {
+        // Initialize the board with a cell for each cellWidth
+        for (var x = 0; x < canvas.width/cellWidth; x++) {
+          board.push([]);
+          for (var y = 0; y < canvas.height/cellWidth; y++) {
+            let state = 0;
+            board[x][y] = new Cell(state);
+          }
+        }
+
+        // Get the neighbours for all the cells
+        for (var x = 0; x < canvas.width/cellWidth; x++) {
+          for (var y = 0; y < canvas.height/cellWidth; y++) {
+            // Radius of 1
+            var radius = 1;
+            for (var i = -radius; i <= radius; i++) {
+              for (var j = -radius; j <= radius; j++) {
+                if (board[x+i] && board[x+i][y+j] && !(i === 0 && j === 0)) {
+                  board[x][y].neighbours.push(board[x+i][y+j])
+                }
+              }
+            }
+          }
+        }
+
+        addMouse(Math.random()*canvas.width, Math.random()*canvas.height);
+        
+      }
+      
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw cells
+        for (var x = 0; x < board.length; x++) {
+          for (var y = 0; y < board[x].length; y++) {
+            board[x][y].draw(x, y);
+          }
+        }
+      }
+
+      function prepareUpdate() {
+        for (var x = 0; x < board.length; x++) {
+          for (var y = 0; y < board[x].length; y++) {
+            if (!board[x][y].water) {
+              board[x][y].resetNext();
+              board[x][y].getNeighbours();
+              board[x][y].prepare(board);
+            }
+          }
+        }
+      }
+
+      function nextGeneration() {
+        for (var x = 0; x < board.length; x++) {
+          for (var y = 0; y < board[x].length; y++) {
+            board[x][y].update();
+          }
+        }
+      }
+
+      function addMouse(x, y) {
+        if (mouseDown || x) {
+          var mx = Math.floor((x || mouseX)/cellWidth);
+          var my = Math.floor((y || mouseY)/cellWidth);
+          // Add points
+          var radius = 3;
+          for (var i = -radius; i <= radius; i++) {
+            for (var j = -radius; j <= radius; j++) {
+              if (board[mx+i] && board[my+j]) {
+                board[mx+i][my+j].state = Math.floor(Math.random() * 2);
+              }
+            }
+          }
+        }
+      }
+
+      function update() {
+        prepareUpdate();
+        nextGeneration();
+        addMouse();
+      }
+
+      // Frames optimizer
+
+      var fps = 60;
+      var now;
+      var then = Date.now();
+      var interval = 1000/fps;
+      var delta;
+      var water = false;
+      var doneCheck = false;
+
+      function loop() {
+          requestAnimationFrame(loop);
+           
+          now = Date.now();
+          delta = now - then;
+          
+           
+          if (delta > interval) {
+               
+              then = now - (delta % interval);
+               
+              // ... Code for Drawing the Frame ...
+
+              for (var i = 0; i < cycles; i++) {
+                update();
+              }
+              draw();
+
+          }
+      }
+
+      init();
+      loop();
+
+			$(document).mousemove(function (e) {
+				mouseX = e.offsetX;
+				mouseY = e.offsetY;
+			})
+			
+			var mouseDown = false;
+			
+			$(document).mousedown(function (e) {
+			  mouseDown = true;
+			}).mouseup(function (e) {
+			  mouseDown = false;
+			})
+
+      $("#type").change(function (e) {
+        ruleString = rules[$("#type option:selected").val()];
+
+        birthRuleString = ruleString.substr(ruleString.indexOf('/')+1, ruleString.length);
+        surviveRuleString = ruleString.substr(0, ruleString.indexOf('/'));
+        deathRuleString = undefined;
+        if ((ruleString.match(new RegExp("/", "g")) || []).length > 1) {
+          deathRuleString = birthRuleString.substr(birthRuleString.indexOf('/')+1, birthRuleString.length);
+          birthRuleString = birthRuleString.substr(0, birthRuleString.indexOf('/'));
+          death = true;
+        }
+
+        board = [];
+        init();        
+      })
+
+      var next = [];
+      window.onresize = function () {
+        for (var x = 0; x < canvas.width/cellWidth; x++) {
+          next.push([]);
+          for (var y = 0; y < canvas.height/cellWidth; y++) {
+            next[x][y] = new Cell();
+          }
+        }
+      }
+		</script>
+	</body>
+</html>

@@ -1,0 +1,280 @@
+<html>
+	<head>
+		<title>Metro</title>
+
+		<style>
+			body { margin: 0; overflow: hidden}
+			canvas {
+				border: 1px solid black;
+				display: inline-block;
+				margin: 0;
+			}
+		</style>
+
+		<link rel="stylesheet" type="text/css" href="style.css">
+	</head>
+	<body>
+
+		<canvas id="canvas" width="1000" height="400"></canvas>
+
+		<script src="javascripts/jquery.js"></script>
+		<script src="javascripts/vector.js"></script>
+		<script src="javascripts/util.js"></script>
+
+		<script src="javascripts/Camera.js"></script>
+		<script src="javascripts/input.js"></script>
+		<script>
+			let canvas = document.getElementById("canvas");
+			let ctx = canvas.getContext("2d");
+			canvas.width = window.innerWidth;
+			canvas.height = window.innerHeight;
+
+			// Settings
+			let zoom = 1;
+			let mapSize = 500;
+			let prevZoom = zoom;
+			let gridBlockSize = 40;
+
+			let offset = new Vector();
+
+			let oldCamera = new Vector();
+			let camera = new Vector();
+
+			function nodeToScreen(xPos, yPos, camera, zoom) {
+				if (xPos instanceof Vector) {
+					return new Vector(((xPos.x+0.5)*gridBlockSize-yPos.x)*camera, ((xPos.y+0.5)*gridBlockSize-yPos.y)*camera);
+				} else {
+					return new Vector(((xPos+0.5)*gridBlockSize-camera.x)*zoom, ((yPos+0.5)*gridBlockSize-camera.y)*zoom);
+				}
+			}
+
+			function screenToNode(xPos, yPos, camera, zoom) {
+				if (xPos instanceof Vector) {
+					return new Vector(
+						Math.floor((((xPos.x)/camera-gridBlockSize/2)+yPos.x)/gridBlockSize+0.5), Math.floor((((xPos.y)/camera-gridBlockSize/2)+yPos.y)/gridBlockSize+0.5));
+				} else {
+					return new Vector(((xPos/zoom)+camera.x)/gridBlockSize-0.5, ((yPos/zoom)+camera.y)/gridBlockSize-0.5);
+				}
+			}
+
+			function exists(pos, nodes) {
+				for (let i = 0; i < nodes.length; i++) {
+					let node = nodes[i];
+					if (node.x == pos.x && node.y == pos.y)
+						return i;
+				}
+			}
+
+			function drawGridLines() {
+
+				for (let i = 0; i < canvas.width/zoom/gridBlockSize + 1; i++) {
+					let xPos = (i*gridBlockSize-camera.x%gridBlockSize)*zoom;
+					drawLine(xPos, 0, xPos, canvas.height, 1, "black", 0.2)
+				}
+
+				for (let j = 0; j < canvas.height/zoom/gridBlockSize + 1; j++) {
+					let yPos = (j*gridBlockSize-camera.y%gridBlockSize)*zoom;
+					drawLine(0, yPos, canvas.width, yPos, 1, "black", 0.2)
+				}
+
+			}
+
+
+			class Road {
+				constructor() {
+
+
+					this.nodes = [];
+
+
+					this.prevNodeNum = 0;
+					this.prevNode = undefined;
+					this.startNode = undefined;
+					this.moveNode = undefined;
+
+					this.curvePoints = [];
+				}
+
+				addNode(x, y) {
+					console
+					if (y) {
+						this.nodes.push(new Vector(x, y))
+					} else {
+						this.nodes.push(x);
+					}
+
+					this.prevNodeNum = this.nodes.length;
+					road.prevNode = this.nodes[this.nodes.length-1];
+
+					this.updateCurvePoints();
+				}
+
+				updateCurvePoints() {
+
+					/*let points = [];
+
+					for (let p of this.nodes) {
+						let node = nodeToScreen(p, camera, zoom);
+						points.push(node.x);
+						points.push(node.y);
+					}
+
+					this.curvePoints = getCurvePoints(points, 0.1, false, 64);*/
+
+					this.curvePoints = [];
+
+					for (let i = 0; i < this.nodes.length-1; i++) {
+						let p = this.nodes[i];
+						let node = nodeToScreen(p, camera, zoom);
+
+						let p2 = this.nodes[i+1];
+						let node2 = nodeToScreen(p2, camera, zoom);
+
+						this.curvePoints = this.curvePoints.concat(getCurvePoints([node.x, node.y, node2.x, node2.y], 0.1, false, Math.ceil(dist(p, p2))*2))
+
+					}
+				}
+
+				animate() {
+
+					this.updateCurvePoints();
+
+					// Animate new road
+					let nodePos = screenToNode(mouse, camera, zoom)
+					if (road.moveNode != undefined && mouse.left) {
+						this.nodes[road.moveNode] = nodePos;
+					} else if (mouse.right) {
+						this.nodes[this.prevNodeNum] = nodePos;
+					}
+
+					// Draw lines
+					let roadColor = "red";
+					ctx.beginPath();
+					ctx.lineWidth = 25*zoom;
+					ctx.strokeStyle = roadColor;
+					ctx.globalAlpha = 0.5;
+					ctx.lineCap = "round";
+					drawLines(ctx, this.curvePoints)
+					ctx.stroke();
+
+					// Draw nodes
+					for (let node of this.nodes) {
+						let screen = nodeToScreen(node, camera, zoom);
+						drawCircle(screen.x, screen.y, zoom*15, roadColor);
+					}
+
+					for (let p of this.curvePoints) {
+						drawCircle(p.x, p.y, zoom*5, roadColor);
+					}
+				}
+			}
+
+			let road = new Road();
+
+			let bus = {
+				pos: new Vector(),
+				angle: 0,
+				t: Date.now()
+			}
+
+			function drawBus() {
+				drawRectCenter(bus.pos.x, bus.pos.y, 50*zoom, 30*zoom, bus.angle, "blue")
+			}
+
+			function updateBus() {
+				if (road.nodes.length > 1 && road.curvePoints.length > 1) {
+
+					let hz = 30;
+					let index = ((Date.now()-bus.t)/hz)%(road.curvePoints.length-1);
+
+					let dir = new Vector();
+					let int_pos = new Vector(); // Interpolated position
+
+					if (Math.ceil(index) == Math.floor(index)) {
+						dir = Vector.sub(road.curvePoints[index+1], road.curvePoints[index]);
+
+						int_pos = road.curvePoints[index];
+					} else {
+						dir = Vector.sub(road.curvePoints[Math.ceil(index)], road.curvePoints[Math.floor(index)]);
+
+						let dist = dir.getMag();
+
+						let p1 = road.curvePoints[Math.floor(index)]
+						let p2 = road.curvePoints[Math.ceil(index)]
+						int_pos = Vector.add(p1, Vector.mult(Vector.sub(p2, p1), (index - Math.floor(index))));
+					}
+
+					bus.pos = int_pos;
+					bus.angle = Math.atan2(dir.y, dir.x);
+
+				}
+			}
+
+			function update() {
+
+				moveGrid();
+
+				updateBus();
+			}
+
+			function draw() {
+
+				// Draw background
+				drawGridLines();
+
+				road.animate();
+
+				drawBus();
+
+				drawText(round(camera.x, 1) + " " + round(camera.y, 1), 10, 10, undefined, "lime", "left", "top")
+
+				drawText(round(mouse.x, 1) + " " + round(mouse.y, 1), 10, 30, undefined, "lime", "left", "top")
+
+				drawText(round(zoom, 2), 10, 50, undefined, "lime", "left", "top")
+
+				let gridPos = screenToNode(mouse, camera, zoom);
+				drawText(round(gridPos.x, 1) + " " + round(gridPos.y, 1), 10, 70, undefined, "lime", "left", "top")
+
+				drawText(round(gridPos.x, 1) + " " + round(gridPos.y, 1), 10, 70, undefined, "lime", "left", "top")
+
+				drawText(round(averageFps, 1), 10, 90, undefined, "lime", "left", "top")
+			}
+
+			// Stats
+
+			let fps = 1000;
+			let now;
+			let then = Date.now();
+			let interval = 1000/fps;
+			let delta, dt;
+
+			let fpsArray, averageFps;
+			fpsArray = [];
+
+			// Game loop
+
+			function loop() {
+				requestAnimationFrame(loop);
+
+				now = Date.now();
+				delta = now - then;
+				dt = delta/1000;
+
+				if (delta > interval) {
+					then = now - (delta % interval);
+
+					fpsArray.push(1000/delta);
+					if (fpsArray.length > 100) {
+						fpsArray.shift();
+					}
+					averageFps = calculateAverage(fpsArray)
+
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+					update();
+					draw();
+				}
+			}
+			loop();
+		</script>
+	</body>
+</html>

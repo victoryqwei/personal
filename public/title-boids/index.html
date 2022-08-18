@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>Autonomous</title>
+		<style>
+			body { margin: 0; overflow: hidden}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" ></canvas>
+
+		<script src="jquery.js"></script>
+		<script src="vector.js"></script>
+		<script src="functions.js"></script>
+		
+		<script>
+			var canvas = document.getElementById("canvas");
+			var ctx = canvas.getContext("2d");
+            
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      $(window).resize(function () {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      })
+
+			var mouseX, mouseY;
+
+			var Boid = function (x, y) {
+				this.location = new Vector(x || random(0, canvas.width), y || random(0, canvas.height));
+				this.velocity = new Vector(1, 0);
+				this.acceleration = new Vector();
+				
+				this.maxSpeed = 4;
+				this.maxForce = 0.1;
+				
+				this.mass = 1;
+				this.angle = 0;
+			}
+			Boid.prototype.update = function () {
+				this.velocity.add(this.acceleration);
+				this.velocity.limit(this.maxSpeed);
+				this.location.add(this.velocity);
+				
+				this.angle = Math.atan2(-this.velocity.y, this.velocity.x);
+				
+        this.acceleration.mult(0);
+			}
+		  Boid.prototype.applyForce = function (force) {
+		    var f = force.copy();
+		    f.div(this.mass);
+		    this.acceleration.add(f);
+		  }
+			Boid.prototype.blockEdges = function () {
+        if (this.location.x + this.mass * 10  > canvas.width) {
+          this.location.x = canvas.width - this.mass * 10;
+          this.velocity.x *= -1/2;
+        } else if (this.location.x < 0) {
+          this.velocity.x *= -1/2;
+          this.location.x = this.mass * 10 ;
+        }
+
+        if (this.location.y + this.mass * 10 > canvas.height) {
+          this.velocity.y *= -1/2;
+          this.location.y = canvas.height - this.mass * 10;
+        } else if (this.location.y - this.mass * 10 < 0) {
+        	this.velocity.y *= -1/2;
+          this.location.y = this.mass * 10;
+        }
+			}
+			Boid.prototype.teleEdges = function () {
+			  if (this.location.x - this.mass * 10 > canvas.width) {
+          this.location.x = -this.mass * 10;
+          this.destroy = true;
+        } else if (this.location.x + this.mass * 10 < 0) {
+          this.location.x = canvas.width + this.mass * 10 ;
+          this.destroy = true;
+        } else if (this.location.y - this.mass * 10 > canvas.height) {
+          this.location.y = -this.mass * 10;
+          this.destroy = true;
+        } else if (this.location.y + this.mass * 10 < 0) {
+          this.location.y = canvas.height + this.mass * 10;
+          this.destroy = true;
+        } else {
+          this.destroy = false;
+        }
+			}
+			Boid.prototype.display = function () {
+				drawTriangle(this.location.x, this.location.y, this.mass*10, this.angle, "#ff3503", 0.5);
+			}
+      Boid.prototype.attract = function (m) {
+          var force = this.location.copy();
+          force.sub(m.location);
+			    var distance = force.getMag();
+			    distance = constrain(distance, 5, 25);
+			    force.normalize();
+			 
+			    var strength = (1 * this.mass * m.mass) / (distance * distance);
+			    force.mult(strength);
+			    return force;
+      }
+      Boid.prototype.seek = function (target) {
+        var desired = new Vector().sub(target,this.location);
+        desired.y = -desired.y;
+        desired.normalize();
+        desired.mult(delta/this.maxSpeed);
+        var steer = new Vector().sub(desired,this.velocity);
+        steer.limit(this.maxForce);
+        return steer;
+      }
+      Boid.prototype.avoid = function (target, detectionRadius) {
+        var desired = new Vector().sub(target,this.location);
+        var distance = desired.getMag();
+        desired.y = -desired.y;
+        desired.normalize();
+        desired.mult(delta/this.maxSpeed);
+        var steer = new Vector().sub(this.velocity, desired);
+        steer.limit(0.4);
+        if (distance > detectionRadius) {
+          steer.limit(0);
+        }
+        return steer;
+      }
+      Boid.prototype.separate = function (other) {
+        var steer = new Vector();
+        for (var i = 0; i < other.length; i++) {
+          var desiredSeparation = 20;
+          
+          var sum = new Vector();
+          var count = 0;
+          
+          for (var i in other) {
+            var d = new Vector().dist(this.location, other[i].location);
+            
+            if (d > 0 && d < desiredSeparation) {
+              var diff = new Vector().sub(this.location, other[i].location);
+              diff.normalize();
+              sum.add(diff);
+              
+              count++
+            }
+          }
+          
+          if (count > 0) {
+            sum.div(count);
+            
+            sum.setMag(delta/this.maxSpeed);
+   
+            steer = new Vector().sub(sum,this.velocity);
+            steer.limit(this.maxForce);
+          }
+        }
+        return steer;
+      }
+      Boid.prototype.align = function (boids) {
+        var neighborDist = 50;
+        var count = 0;
+        var sum = new Vector(0,0);
+        for (var i in boids) {
+          var d = new Vector().dist(this.location,boids[i].location);
+          if ((d > 0) && (d < neighborDist)) {
+            sum.add(boids[i].velocity);
+            count++;
+          }
+        }
+        if (count > 0) {
+          sum.div(count);
+          sum.normalize();
+          sum.mult(delta/this.maxSpeed);
+          var steer = new Vector().sub(sum,this.velocity);
+          steer.limit(this.maxForce);
+          return steer;
+        } else {
+          return new Vector(0,0);
+        }
+      }
+      Boid.prototype.cohesion = function (boids) {
+        var neighborDist = 50;
+        var sum = new Vector(0,0);
+        var count = 0;
+        for (var i in boids) {
+          var d = new Vector().dist(this.location,boids[i].location);
+          if ((d > 0) && (d < neighborDist)) {
+            sum.add(boids[i].location);
+            count++;
+          }
+        }
+        if (count > 0) {
+          sum.div(count);
+          return this.seek(sum);
+        } else {
+          return new Vector(0,0);
+        }
+      }
+      Boid.prototype.flock = function (v) {
+        var sep = this.separate(v);
+        var ali = this.align(v);
+        var coh = this.cohesion(v);
+    
+        sep.mult(1);
+        ali.mult(2);
+        coh.mult(1.7);
+         
+        this.applyForce(sep);
+        this.applyForce(ali);
+        this.applyForce(coh);
+      }
+      
+			var boids = [];
+		  
+			function draw() {
+			  if (mouseDown) {
+			    boids.push(new Boid(mouseX, mouseY))
+			  }
+
+        /*var titlePos = [
+          new Vector(canvas.width*0.24, canvas.height*0.27),
+          new Vector(canvas.width*0.32, canvas.height*0.27),
+          new Vector(canvas.width*0.42, canvas.height*0.27),
+          new Vector(canvas.width-canvas.width*0.24, canvas.height*0.54),
+          new Vector(canvas.width-canvas.width*0.32, canvas.height*0.54),
+          new Vector(canvas.width-canvas.width*0.42, canvas.height*0.54)
+        ];*/
+
+        for (var i = boids.length - 1; i >= 0; i--) {
+          boids[i].flock(boids);
+
+          /*// Avoid title screen
+          for (let title of titlePos) {
+            boids[i].applyForce(boids[i].avoid(new Vector(title.x, title.y), 100))
+          }*/
+          
+          
+          boids[i].update();
+          boids[i].display();
+          boids[i].teleEdges();
+
+          
+        }
+			}
+			
+			var fps = 1000;
+      var now;
+      var then = Date.now();
+      var interval = 1000/fps;
+      var delta;
+      
+      var fpsArray = [];
+        
+      function loop() {
+          requestAnimationFrame(loop);
+           
+          now = Date.now();
+          delta = now - then;
+          
+           
+          if (delta > interval) {
+               
+              then = now - (delta % interval);
+               
+              // ... Code for Drawing the Frame ...
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+              let t = Date.now();
+              draw();
+              let dt = Date.now() - t;
+              for (let i = boids.length-1; i >= 0; i--) {
+                if (boids[i].destroy && dt > 10) {
+                  boids.splice(i,1);
+                }
+              }
+              if (dt < 5) {
+                boids.push(new Boid(Math.random() * canvas.width, Math.random() * canvas.height));
+              }
+              
+              fpsArray.push(1000/delta);
+              if (fpsArray.length > 30) {
+                fpsArray.shift();
+              }
+              
+          }
+      }
+      
+      $(document).ready(function () {
+        loop();
+      })
+
+			$(document).mousemove(function (e) {
+				mouseX = e.offsetX;
+				mouseY = e.offsetY;
+			})
+			
+			var mouseDown = false;
+			
+			$(document).mousedown(function (e) {
+			  mouseDown = true;
+			}).mouseup(function (e) {
+			  mouseDown = false;
+			})
+		</script>
+	</body>
+</html>

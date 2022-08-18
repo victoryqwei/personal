@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>Ray Casting</title>
+		<style>
+			body { margin: 0; overflow: hidden}
+			canvas {
+				border: solid black 1px;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" width="800" height="400"></canvas>
+
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+		<script src="javascripts/functions.js"></script>
+		<script src="javascripts/vector.js"></script>
+		<script src="javascripts/setup.js"></script>
+		<script src="javascripts/geometry.js"></script>
+		<script src="javascripts/ray.js"></script>
+		<script src="javascripts/player.js"></script>
+		<script src="javascripts/camera.js"></script>
+		<script src="javascripts/sound.js"></script>
+		<script src="javascripts/gun.js"></script>
+		<script>
+           
+			// Create objects
+
+			var walls = [];
+			walls.push(
+				new Boundary(0, 0, 0, map.height, "wall"),
+				new Boundary(0, 0, map.width, 0, "wall"),
+				new Boundary(0, map.height, map.width, map.height, "wall"),
+				new Boundary(map.width, 0, map.width, map.height, "wall")
+			);
+
+			let pixelDensity = (1/scene.width) * 5;
+			var camera = new Camera(90);
+
+			var players = [];
+			for (var i = 0; i < 5; i++) {
+				players.push(new Player());
+			}
+
+			setInterval(function() {
+				players.push(new Player());
+			}, 2000)
+
+			// Ray cast onto walls
+
+			var display;
+
+			function cast() {
+				display = camera.look(walls, minimapRel);
+				const w = scene.width / display.length;
+
+				for (let i = 0; i < display.length; i++) {
+					for (let j = 0; j < display[i].length; j++) { // Draws farthest to closest
+						const d = display[i][j].distance / scene.width;
+					    const blackness = 1 / d ** 2 + 50;
+					    const h = 30 / d * display[i][j].height;
+					    let width = w+1;
+
+						ctx.fillStyle = "rgb(" + blackness + "," + blackness + "," + blackness + ")";
+
+						if (display[i][j].type == "player") {
+							ctx.fillStyle = "red";
+							width += 2;
+						}
+
+						drawRect(canvas.width - i*w - w/2, scene.height/2+(30/d-h)/2, width, h);
+
+						// Outline
+						if (j == display[i].length-1) {
+							ctx.fillStyle = "black"; 
+							drawRect(canvas.width - i*w - w/2, scene.height/2+(30/d-h)/2+h/2, width, 1);
+							drawRect(canvas.width - i*w - w/2, scene.height/2+(30/d-h)/2-h/2, width, 1);
+						}
+					}	
+				}
+			}
+
+			// Minimap / UI
+
+			function displayMinimap(rel) {
+				for (let wall of walls) {
+					wall.show(rel);
+				}
+				
+				camera.show(rel);
+				for (var i = 0; i < players.length; i++) {
+					players[i].show(rel);
+				}
+
+				// Gun UI
+				ctx.fillStyle = "yellow";
+				ctx.font = "30px Arial";
+				ctx.fillText(ammo + " / " + maxAmmo, 50, canvas.height-50);
+			}
+
+			// Discard dead objects
+
+			function discard() {
+				walls = walls.filter(function (el) {
+				  return el.dead != true;
+				});
+
+
+				players = players.filter(function (el) {
+				  return el.dead != true;
+				});
+			}
+
+			// Update
+
+			function update() {
+				// Move players
+				for (let player of players) {
+					player.move();
+				}
+
+
+				// Key input
+				camera.move(keys);
+				if (keys[82]) { // "R" key
+					reload();
+				}
+
+				// Discard dead objects
+				discard();
+			}
+
+			// Draw
+
+			function draw() {
+				// Draw background
+				ctx.fillStyle = "#77b5fe";
+				ctx.fillRect(0, 0, canvas.width, canvas.height/2);
+				ctx.fillStyle = "grey";
+				ctx.fillRect(0, canvas.height/2, canvas.width, canvas.height/2);
+
+
+				// Ray casting
+				cast();
+
+				// Minimap
+				displayMinimap(minimapRel);
+
+				// Draw gun & crosshair
+				displayGun();
+			}
+
+			var fps = 1000;
+			var now;
+			var then = Date.now();
+			var interval = 1000/fps;
+			var delta;
+
+			var fpsArray = [];
+
+			function loop() {
+				requestAnimationFrame(loop);
+
+				now = Date.now();
+				delta = now - then;
+
+
+				if (delta > interval) {
+				   
+					then = now - (delta % interval);
+
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+					update();
+					draw();
+
+					fpsArray.push(1000/delta);
+					if (fpsArray.length > 30) {
+						fpsArray.shift();
+					}
+
+					var averageArray = fpsArray.reduce((a, b) => a + b, 0)/fpsArray.length;
+					ctx.beginPath();
+					ctx.font = "30px Arial";
+					ctx.fillStyle = "red";
+					ctx.fillText(Math.floor(averageArray), canvas.width - 75, 50);
+					ctx.closePath();
+				  
+				}
+			}
+			loop();
+		</script>
+	</body>
+</html>

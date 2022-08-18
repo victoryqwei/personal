@@ -1,0 +1,145 @@
+<!-- Home -->
+<div id="home" class="container">
+	<iframe id="iframe"></iframe>
+	<div id="titleContainer">
+		<h1 id="title1" class="title">Hey there!</h1>
+		<h1 id="title2" class="title">I'm Victor.</h1>
+		<div id="scroll-down">
+			<h1 id="title3" class="title">Feel free to take a look around</h1>
+			<img id="down-arrow" class="title" src="./pic/scroll.png">
+		</div>
+
+		<div id="boid-info">
+			<a id="linkToSim"target="blank"></a>
+			<p id="simInfo"></p>
+		</div>
+	</div>
+	<img id="left-arrow" class="title" src="./pic/scroll.png">
+	<img id="right-arrow" class="title" src="./pic/scroll.png">
+</div>
+
+<!-- About -->
+<div id="about" about></div>
+
+<!-- Projects -->
+<div id="projects" projects></div>
+
+<!-- Contact -->
+<div id="contact" contact></div>
+
+<!-- Contact -->
+<div id="blog" blog></div>
+
+<script>
+	var transitionDelay = 1000;
+	var visited = false;
+
+	$(window).ready(function () {
+		$("#title1").fadeIn(transitionDelay, function () {
+			$("#title2").fadeIn(transitionDelay, function () {
+				$("#title3").fadeIn(transitionDelay);
+				$("#down-arrow").fadeIn(transitionDelay);
+				$("#right-arrow").fadeIn(transitionDelay);
+				$("#left-arrow").fadeIn(transitionDelay);
+				visited = true;
+			});
+		});
+	})
+
+	if (visited) {
+		$("#title1").fadeIn(transitionDelay, function () {
+			$("#title2").fadeIn(transitionDelay, function () {
+				$("#title3").fadeIn(transitionDelay);
+				$("#down-arrow").fadeIn(transitionDelay);
+				$("#right-arrow").fadeIn(transitionDelay);
+				$("#left-arrow").fadeIn(transitionDelay);
+				visited = true;
+			});
+		});
+	}
+
+	// Navigation
+
+	$("#navHome").click(function () {
+		$("html, body").scrollTop($('#home').offset().top);
+	})
+
+	$("#navAbout, #titleContainer").click(function () {
+		$("html, body").scrollTop($('#about').offset().top);
+	})
+
+	$("#navProjects").click(function () {
+		$("html, body").scrollTop($('#projects').offset().top);
+	})
+
+	$("#navContact").click(function () {
+		$("html, body").scrollTop($('#contact').offset().top);
+	})
+
+	$("#navBlog").click(function () {
+		$("html, body").scrollTop($('#blog').offset().top);
+	})
+
+	// Iframe display
+
+	var titles = [
+		
+		{
+			url: "title-boids",
+			name: "Flocking Simulation",
+			link: "./projects/autonomous/",
+			description: "Hold down mouse to add more boids!"
+		},
+		{
+			url: "title-ropes",
+			name: "Rope Simulation",
+			link: "./projects/ropes/",
+			description: "Hold down mouse to drag the rope around"
+		},
+		{
+			url: "title-graviton",
+			name: "Particle Simulation",
+			link: "./projects/graviton/",
+			description: ""
+		},
+		{
+			url: "title-force",
+			name: "Force Simulation",
+			link: "./projects/force/",
+			description: "Move around the mouse to see a cool effect!"
+		},
+		{
+			url: "title-life",
+			name: "Game of Life",
+			link: "./projects/life/",
+			description: "Click to create life!"
+		}
+	];
+	var counter = 0;
+
+	document.getElementById("iframe").src = "./" + titles[counter].url;
+	$("#linkToSim").text(titles[counter].name);
+	document.getElementById("linkToSim").href = titles[counter].link;
+	$("#simInfo").text(titles[counter].description);
+
+	$("#left-arrow").click(function() {
+		counter--
+		if (counter < 0)
+			counter = titles.length-1;
+		document.getElementById("iframe").src = "./" + titles[counter].url;
+		$("#linkToSim").text(titles[counter].name);
+		document.getElementById("linkToSim").href = titles[counter].link;
+		$("#simInfo").text(titles[counter].description);
+	})
+
+	$("#right-arrow").click(function() {
+		counter++
+		if (counter > titles.length-1)
+			counter = 0;
+		document.getElementById("iframe").src = "./" + titles[counter].url;
+		$("#linkToSim").text(titles[counter].name);
+		document.getElementById("linkToSim").href = titles[counter].link;
+		$("#simInfo").text(titles[counter].description);
+	})
+	
+</script>

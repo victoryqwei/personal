@@ -1,0 +1,286 @@
+<html>
+	<head>
+		<title>Pool</title>
+
+		<style>
+			body { margin: 0; overflow: hidden}
+			canvas {
+				border: 1px solid black;
+				display: inline-block;
+				margin: 0;
+			}
+		</style>
+
+		<link rel="stylesheet" type="text/css" href="style.css">
+	</head>
+	<body>
+		
+
+		<canvas id="canvas" width="1000" height="400"></canvas>
+
+		<script src="javascripts/math.min.js"></script>
+
+		<script src="javascripts/jquery.js"></script>
+		<script src="javascripts/vector.js"></script>
+		<script src="javascripts/helper.js"></script>
+		<script>
+			var canvas = document.getElementById("canvas");
+			var ctx = canvas.getContext("2d");
+			canvas.width = window.innerWidth;
+			canvas.height = window.innerHeight;
+
+			let ballRadius = 10;
+
+			class Ball {
+				constructor(x, y) {
+					let margin = 10;
+					this.pos = new Vector(x || random(canvas.height, 0), y || random(canvas.height, 0));
+					this.vel = new Vector();
+					this.hitVector = new Vector();
+					this.maxHitPower = 20;
+
+					this.radius = ballRadius;
+					this.mass = 1;
+
+					this.selected = false;
+					this.collided = false;
+
+					this.frictionCoefficient = 1;
+					this.hitCoefficient = 0.1;
+				}
+
+				draw() {
+					drawCircle(this.pos.x, this.pos.y, this.radius, 1, "red")
+				}
+			}
+
+			var balls = [];
+			var mouseSelect = false;
+
+			var bPos = [
+				[0, 0],
+				[0, 1],
+				[0, 2],
+				[0, 3],
+				[0, 4],
+				[1, 0.5],
+				[1, 1.5],
+				[1, 2.5],
+				[1, 3.5],
+				[2, 1],
+				[2, 2],
+				[2, 3],
+				[3, 1.5],
+				[3, 2.5],
+				[4, 2]
+			]
+
+			/*var ballOffset = 5;
+
+			for (var i = 0; i < 15; i++) {
+				balls.push(new Ball(bPos[i][0]*ballRadius*2+ballOffset*i+canvas.width/3, bPos[i][1]*ballRadius*2+ballOffset*i+canvas.height/2));
+			}*/
+
+			for (var i = 0; i < 100; i++) {
+				balls.push(new Ball());
+			}
+
+			balls.push(new Ball(canvas.width*2/3, canvas.height/2))
+
+			function releaseStick() {
+				// Move ball
+				for (let b of balls) {
+					if (b.selected && b.hitVector.getMag() > 0) {
+						b.vel = b.hitVector.copy();
+						b.vel.mult(b.hitCoefficient);
+						b.vel.setMag(constrain(b.vel.getMag(), 0, b.maxHitPower));
+
+						console.log("Released at:", b.vel.getMag())
+					}
+				}
+
+				// Reset mouse selection
+				for (let b of balls) {
+					b.selected = false;
+					b.hitVector = new Vector();
+				}
+				mouseSelect = false;
+			}
+
+			function checkCollision() {
+				for (let b of balls) {
+					b.collided = false;
+				}
+
+				for (let b of balls) {
+					// Wall collision
+					if (b.pos.x + b.radius > canvas.width || b.pos.x - b.radius < 0) {
+						b.vel.x = -b.vel.x;
+					}
+					if (b.pos.y + b.radius > canvas.height || b.pos.y - b.radius < 0) {
+						b.vel.y = -b.vel.y;
+					}
+
+					for (let b2 of balls) {
+						if (b.pos.x != b2.pos.x && b.pos.y != b2.pos.y && !b.collided && !b2.collided) {
+							let collision = Vector.sub(b.pos, b2.pos);
+							if (collision.getMag() < b.radius + b2.radius) { // Check if the two balls are colliding
+								// Resolve the collision normal
+								var colNorm = collision.copy();
+								colNorm.normalize();
+								
+								var colTang = new Vector(-colNorm.y, colNorm.x); // Collision tangent
+
+								// Scalar dot products
+								var v1n = Vector.dot(colNorm, b.vel);
+								var v1t = Vector.dot(colTang, b.vel);
+
+								var v2n = Vector.dot(colNorm, b2.vel);
+								var v2t = Vector.dot(colTang, b2.vel);
+
+								var v1n_ = ((v1n * (b.mass-b2.mass)) + v2n*2*b2.mass)/(b.mass+b2.mass)
+
+								var v2n_ = ((v2n * (b2.mass-b.mass)) + v1n*2*b.mass)/(b.mass+b2.mass);
+
+								v1n_ = Vector.mult(colNorm, v1n_);
+								v2n_ = Vector.mult(colNorm, v2n_);
+
+								v1t_ = Vector.mult(colTang, v1t);
+								v2t_ = Vector.mult(colTang, v2t);
+
+								b.vel = Vector.add(v1n_, v1t_);
+								b2.vel = Vector.add(v2n_, v2t_);
+
+								/*let r = 0.9;
+
+								var oldb = b.vel.copy();
+								var oldb2 = b2.vel.copy();
+
+								b.vel.x = (r*(oldb2.x-oldb.x)+oldb.x*b.mass+oldb2.x*b2.mass)/(b.mass+b2.mass);
+								b.vel.y = (r*(oldb2.y-oldb.y)+oldb.y*b.mass+oldb2.y*b2.mass)/(b.mass+b2.mass);
+
+								b2.vel.x = (r*(oldb.x-oldb2.x)+oldb.x*b.mass+oldb2.x*b2.mass);
+								b2.vel.y = (r*(oldb.y-oldb2.y)+oldb.y*b.mass+oldb2.y*b2.mass);*/
+
+								b.collided = true;
+								b2.collided = true;
+							}
+						}
+							
+					}
+				}
+			}
+
+			function update() {
+				// Select ball using mouse
+				if (mouse.left && !mouseSelect) {
+					for (var b of balls) {
+						var collision = Vector.sub(new Vector(mouse.x, mouse.y), b.pos)
+						if (collision.getMag() < b.radius) {
+							b.selected = true;
+							mouseSelect = true;
+						}
+					}
+				}
+
+				// Update ball position based on their velocities
+				for (var b of balls) {
+					b.pos.x += b.vel.x;
+					b.pos.y += b.vel.y;
+
+					b.vel.setMag(b.vel.getMag()*b.frictionCoefficient)
+				}
+
+				// Check collision
+				checkCollision();
+			}
+
+			function draw() {
+				for (var b of balls) {
+					b.draw();
+					if (b.selected) {
+						b.hitVector = b.pos.copy();
+						b.hitVector.sub(new Vector(mouse.x, mouse.y));
+						b.hitVector.setMag(constrain(b.hitVector.getMag()*b.hitCoefficient, 0, b.maxHitPower)/b.hitCoefficient)
+
+						drawArrow(b.pos.x, b.pos.y, b.pos.x + b.hitVector.x, b.pos.y + b.hitVector.y, 2, "black");
+					}
+				}
+			}
+			
+			// Stats
+
+			var fps = 1000;
+			var now;
+			var then = Date.now();
+			var interval = 1000/fps;
+			var delta, dt;
+
+			var fpsArray, speedArray;
+			fpsArray = [];
+			speedArray = [];
+
+			// Game loop
+
+			function loop() {
+				requestAnimationFrame(loop);
+
+				now = Date.now();
+				delta = now - then;
+				dt = delta/1000;
+
+				if (delta > interval) {
+					then = now - (delta % interval);
+
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+					update();
+					draw();
+				}
+			}
+			loop();
+
+		    var map = {};
+			onkeydown = onkeyup = function(e){
+			    e = e || event; 
+			    map[e.keyCode] = e.type == 'keydown';
+			}
+
+			var mouse = new Vector();
+			$("#canvas").on("mousemove", function (e) {
+				mouse.x = e.offsetX;
+				mouse.y = e.offsetY;
+			})
+
+			$("#canvas").on('mousedown', function (e) {
+				if (e.which == 1) {
+					mouse.left = true;
+				} else if (e.which == 2) {
+					mouse.middle = true;
+				} else if (e.which == 3) {
+					mouse.right = true;
+				}
+				e.preventDefault();
+			}).on('mouseup', function (e) {
+				if (e.which == 1) {
+					mouse.left = false;
+				} else if (e.which == 2) {
+					mouse.middle = false;
+				} else if (e.which == 3) {
+					mouse.right = false;
+				}
+				e.preventDefault();
+
+				releaseStick();
+			})
+
+			window.oncontextmenu = function () {
+				return false;
+			}
+
+			$(window).resize(function () {
+				canvas.width = window.innerWidth;
+				canvas.height = window.innerHeight;
+			})
+		</script>
+	</body>
+</html>

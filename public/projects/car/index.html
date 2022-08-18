@@ -1,0 +1,618 @@
+<html>
+	<head>
+		<title>Car Steering Neuralevolution</title>
+
+		<style>
+			canvas {
+				border: 1px solid black;
+				display: inline-block;
+			}
+
+			.slider {
+			    -webkit-appearance: none;
+			    width: 100%;
+			    height: 25px;
+			    background: #d3d3d3;
+			    outline: none;
+			    opacity: 0.7;
+			    -webkit-transition: .2s;
+			    transition: opacity .2s;
+			}
+
+			.slider:hover {
+			    opacity: 1;
+			}
+
+			.slider::-webkit-slider-thumb {
+			    -webkit-appearance: none;
+			    appearance: none;
+			    width: 25px;
+			    height: 25px;
+			    background: #4CAF50;
+			    cursor: pointer;
+			}
+
+			html {
+				background: grey;
+			}
+
+			p {
+				margin-top: 5px;
+				margin-bottom: 5px;
+			}
+		</style>
+	</head>
+	<body>
+		<div>
+			<canvas id="canvas" width="1000" height="400"></canvas>
+			<div style="display: inline-block;">
+				<canvas id="stats" width="400" height="400"></canvas>
+			</div>
+
+			<p id="score">Current Score: 0</p>
+			<p id="highscore" style="display: inline-block;">High Score: 0</p> <button id="resetHighscore">Reset</button>
+			<br />
+			<p id="generation" style="display: inline-block;">Generation: 1</p><button id="runBest" style="display: inline-block;">Run Best Bird</button><button id="runLatest" style="display: inline-block;">Run Latest Bird</button>
+		</div>
+
+		<script src="jquery.js"></script>
+		<script src="vector.js"></script>
+		<script src="matrix.js"></script>
+		<script src="vector.js"></script>
+		<script src="nn.js"></script>
+		<script src="ga.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.js"></script>
+		<script>
+			var canvas = document.getElementById("canvas");
+			var ctx = canvas.getContext("2d");
+
+			var cycles = 1;
+			var score = 0;
+			var highScore = 0;
+			var generation = 1;
+
+			class Car {
+				constructor(x, y) {
+					this.location = new Vector(x || getRandomInt(0, canvas.width), y || getRandomInt(0, canvas.height));
+					this.topR;
+					this.bottomR;
+					this.topL;
+					this.bottomL;
+					this.velocity = new Vector(0, 0);
+					this.acceleration = new Vector();
+
+					this.maxSpeed = 5;
+					this.maxForce = 0.05;
+					
+					this.mass = 1;
+					this.angle = 0;
+
+					this.touch = false;
+					this.counter = 0;
+
+					this.score = 0;
+
+					this.brain = new NeuralNetwork(4, 8, 1);
+				}
+
+				update() {
+					this.velocity.add(this.acceleration);
+					this.velocity.limit(this.maxSpeed);
+					this.location.add(this.velocity);
+					
+					this.angle = Math.atan(-this.velocity.y/this.velocity.x);
+				
+       				this.acceleration.mult(0)
+				}
+
+				applyForce(force) {
+					var f = force.copy();
+				    f.div(this.mass);
+				    this.acceleration.add(f);
+				}
+
+				draw() {
+
+					if (this.counter>0) {
+						drawRect(this.location.x, this.location.y, this.mass*40, this.mass*20, this.angle, "red")
+					} else {
+						drawRect(this.location.x, this.location.y, this.mass*40, this.mass*20, this.angle)
+					}
+
+					// Bottom Right
+
+					var x1 = this.location.x + 20 * Math.cos(this.angle) - 10 * Math.sin(this.angle)
+ 					var y1 = this.location.y + 20 * Math.sin(this.angle) + 10 * Math.cos(this.angle)
+
+ 					this.bottomR = new Vector(x1-this.location.x, y1-this.location.y);
+ 					this.bottomR.normalize();
+ 					this.bottomR.mult(200);
+
+ 					// Bottom Left
+
+					var x2 = this.location.x + 20 * Math.cos(this.angle) + 10 * Math.sin(this.angle)
+ 					var y2 = this.location.y + 20 * Math.sin(this.angle) - 10 * Math.cos(this.angle)
+
+ 					this.topR = new Vector(x2-this.location.x, y2-this.location.y);
+ 					this.topR.normalize();
+ 					this.topR.mult(200);
+
+					var x3 = this.location.x - 20 * Math.cos(this.angle) - 10 * Math.sin(this.angle)
+ 					var y3 = this.location.y - 20 * Math.sin(this.angle) + 10 * Math.cos(this.angle)
+
+ 					this.bottomL = new Vector(x3-this.location.x, y3-this.location.y);
+ 					this.bottomL.normalize();
+ 					this.bottomL.mult(200);
+
+					var x4 = this.location.x - 20 * Math.cos(this.angle) + 10 * Math.sin(this.angle)
+ 					var y4 = this.location.y - 20 * Math.sin(this.angle) - 10 * Math.cos(this.angle)
+
+ 					this.topL = new Vector(x4-this.location.x, y4-this.location.y);
+ 					this.topL.normalize();
+ 					this.topL.mult(200);
+
+ 					this.counter = 0;
+
+ 					for (var i = 0; i < lines.length; i++) {
+ 						for (var x = 0; x < 2; x++) {
+ 							var left = lineLine(lines[i][x].start.x, lines[i][x].start.y, lines[i][x].end.x, lines[i][x].end.y, x4, y4, x3, y3)
+	 						var right = lineLine(lines[i][x].start.x, lines[i][x].start.y, lines[i][x].end.x, lines[i][x].end.y, x2, y2, x1, y1)
+	 						var top = lineLine(lines[i][x].start.x, lines[i][x].start.y, lines[i][x].end.x, lines[i][x].end.y, x4, y4, x2, y2)
+	 						var bottom = lineLine(lines[i][x].start.x, lines[i][x].start.y, lines[i][x].end.x, lines[i][x].end.y, x3, y3, x1, y1)
+
+	 						if (left || right || top || bottom) {
+	 							this.counter++;
+	 							this.collision = true;
+	 						}
+ 						}
+ 					}
+
+					ctx.fillRect(this.location.x, this.location.y, 1, 1);
+
+					ctx.beginPath();
+					ctx.moveTo(this.location.x, this.location.y);
+					ctx.lineTo(this.topR.x+this.location.x, this.topR.y+this.location.y);
+					ctx.stroke();
+					ctx.beginPath();
+					ctx.moveTo(this.location.x, this.location.y);
+					ctx.lineTo(this.bottomR.x+this.location.x, this.bottomR.y+this.location.y);
+					ctx.stroke();
+					ctx.beginPath();
+					ctx.moveTo(this.location.x, this.location.y);
+					ctx.lineTo(this.topL.x+this.location.x, this.topL.y+this.location.y);
+					ctx.stroke();
+					ctx.beginPath();
+					ctx.moveTo(this.location.x, this.location.y);
+					ctx.lineTo(this.bottomL.x+this.location.x, this.bottomL.y+this.location.y);
+					ctx.stroke();
+				}
+
+				move(direction) {
+
+					if (direction == "left") {
+						this.angle -= this.maxForce;
+					}
+					if (direction == "right") {
+						this.angle += this.maxForce;
+					}
+					
+					/*if (map[37]) {
+						this.angle -= this.maxForce;
+					}
+					if (map[39]) {
+						this.angle += this.maxForce;
+					}*/
+					
+					//if (map[38]) {
+					var steer = new Vector(this.maxSpeed * Math.cos(this.angle), -(this.maxSpeed * Math.sin(this.angle)));
+					
+					this.velocity = steer;
+					var previousX = this.location.x;
+					this.location.add(this.velocity);
+					this.location.x = previousX
+
+					//}
+					/*if (map[40]) {
+						var steer = new Vector(this.maxSpeed * Math.cos(-this.angle), this.maxSpeed * Math.sin(this.angle));
+						
+						this.velocity = steer
+						this.location.sub(this.velocity);
+					}*/
+				}
+
+				think(lines) {
+
+					var inputs = [0, 0, 0, 0];
+					
+					// Get the sensors data
+
+					for (var i = 0; i < lines.length; i++) {
+						for (var x = 0; x < lines[i].length; x++) {
+							if (lineIntersect(this.location.x, this.location.y, this.topR.x + this.location.x, this.topR.y + this.location.y, lines[i][x].start.x, lines[i][x].start.y, lines[i][x].end.x, lines[i][x].end.y)) {
+								var poi = line_intersect(this.location.x, this.location.y, this.topR.x + this.location.x, this.topR.y + this.location.y, lines[i][x].start.x, lines[i][x].start.y, lines[i][x].end.x, lines[i][x].end.y)
+
+								var poiv = new Vector(poi.x, poi.y)
+								ctx.fillRect(poiv.x-1, poiv.y-1, 10, 10)
+								poiv.sub(this.location, poiv)
+
+								inputs[0] = poiv.getMag()/200
+							}
+						}
+					}
+					for (var i = 0; i < lines.length; i++) {
+						for (var x = 0; x < lines[i].length; x++) {
+							if (lineIntersect(this.location.x, this.location.y, this.bottomR.x + this.location.x, this.bottomR.y + this.location.y, lines[i][x].start.x, lines[i][x].start.y, lines[i][x].end.x, lines[i][x].end.y)) {
+								var poi = line_intersect(this.location.x, this.location.y, this.bottomR.x + this.location.x, this.bottomR.y + this.location.y, lines[i][x].start.x, lines[i][x].start.y, lines[i][x].end.x, lines[i][x].end.y)
+
+								var poiv = new Vector(poi.x, poi.y)
+								ctx.fillRect(poiv.x-1, poiv.y-1, 10, 10)
+								poiv.sub(this.location, poiv)
+
+								inputs[1] = poiv.getMag()/200
+							}
+						}
+					}
+					for (var i = 0; i < lines.length; i++) {
+						for (var x = 0; x < lines[i].length; x++) {
+							if (lineIntersect(this.location.x, this.location.y, this.bottomL.x + this.location.x, this.bottomL.y + this.location.y, lines[i][x].start.x, lines[i][x].start.y, lines[i][x].end.x, lines[i][x].end.y)) {
+								var poi = line_intersect(this.location.x, this.location.y, this.bottomL.x + this.location.x, this.bottomL.y + this.location.y, lines[i][x].start.x, lines[i][x].start.y, lines[i][x].end.x, lines[i][x].end.y)
+
+								var poiv = new Vector(poi.x, poi.y)
+								ctx.fillRect(poiv.x-1, poiv.y-1, 10, 10)
+								poiv.sub(this.location, poiv)
+
+								inputs[2] = poiv.getMag()/200
+							}
+						}
+					}
+					for (var i = 0; i < lines.length; i++) {
+						for (var x = 0; x < lines[i].length; x++) {
+							if (lineIntersect(this.location.x, this.location.y, this.topL.x + this.location.x, this.topL.y + this.location.y, lines[i][x].start.x, lines[i][x].start.y, lines[i][x].end.x, lines[i][x].end.y)) {
+								var poi = line_intersect(this.location.x, this.location.y, this.topL.x + this.location.x, this.topL.y + this.location.y, lines[i][x].start.x, lines[i][x].start.y, lines[i][x].end.x, lines[i][x].end.y)
+
+								var poiv = new Vector(poi.x, poi.y)
+								ctx.fillRect(poiv.x-1, poiv.y-1, 10, 10)
+								poiv.sub(this.location, poiv)
+
+								inputs[3] = poiv.getMag()/200
+							}
+						}
+					}
+
+					var output = this.brain.feedForward(inputs);
+
+					if (output[0] > 0.5) {
+						// Jump
+						this.move("right")
+					} else {
+						this.move("left")
+					}
+				}
+
+				mutate() {
+					this.brain.mutate(0.01);
+				}
+			}
+
+			function lineLine(x1, y1, x2, y2, x3, y3, x4, y4) {
+			  	// calculate the direction of the lines
+			  	var uA = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
+			  	var uB = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
+
+			  	// if uA and uB are between 0-1, lines are colliding
+			  	if (uA >= 0 && uA <= 1 && uB >= 0 && uB <= 1) {
+			    	return true;
+			  	}
+			  	return false;
+			}
+
+			// Charting statistics
+
+			var c = document.getElementById('stats').getContext('2d');
+
+			var generation = 1;
+			var generationAverage = 0;
+			var dataLimit = 20;
+
+			var Chart = new Chart(c, {
+			    type: 'line',
+			    data: {
+		    		labels: [],
+	        		datasets: [{
+	            		label: "Bird Stats",
+	            		borderColor: 'rgb(255, 99, 132)',
+	            		data: [],
+	            		radius: 0
+	        		}]
+			    },
+			    options: {
+			    	responsive: false,
+			    	maintainAspectRatio: false,
+			    	scales: {
+						yAxes: [{
+					   		scaleLabel: {
+					        	display: true,
+					        	labelString: 'Generation Average Score'
+					    	}
+						}],
+						xAxes: [{
+					   		scaleLabel: {
+					        	display: true,
+					        	labelString: 'Generation #'
+					    	}
+						}]
+					}
+			    }
+			});
+
+			class Line {
+				constructor(x1, y1, x2, y2) {
+					this.start = new Vector(x1, y1);
+					this.end = new Vector(x2, y2);
+				}
+
+				draw() {
+					ctx.beginPath()
+					ctx.moveTo(this.start.x, this.start.y)
+					ctx.lineTo(this.end.x, this.end.y)
+					ctx.stroke();
+				}
+			}
+
+			var lines = []
+
+			for (var i = 0; i < 7; i++) {
+				var h1 = getRandomInt(0, canvas.height - 200)
+				var h2 = getRandomInt(0, canvas.height - 200)
+				if (lines.length > 0) {
+					lines.push([
+						new Line(canvas.width/5 * i, lines[i-1][0].end.y, canvas.width/5 * (i + 1), h2),
+						new Line(canvas.width/5 * i, lines[i-1][1].end.y, canvas.width/5 * (i + 1), h2+150)
+					])
+				} else {
+					lines.push([
+						new Line(canvas.width/5 * i, h1, canvas.width/5 * (i + 1), h2), 
+						new Line(canvas.width/5 * i, h1+150, canvas.width/5 * (i + 1), h2+150)
+					])
+				}
+			}
+
+			var cars = [];
+			var saved = [];
+			var population = 100;
+
+			for (var i = 0; i < population; i++) {
+				cars.push(new Car(50, lines[0][0].start.y+75));
+			}
+
+			function checkCollision() {
+				for (var i = 0; i < cars.length; i++) {
+					if (cars[i].collision) {
+						saved.push(cars[i]);
+						cars[i] = undefined;
+					}
+				}
+
+				cars = cars.filter(function (el) {
+				  return el != undefined;
+				});
+
+				if (cars.length == 0) {
+					cars = nextGeneration(saved, Car);
+				}
+			}
+
+			function update() {
+				for (var i = 0; i < cars.length; i++) {
+					cars[i].think(lines);
+					cars[i].score += 1;
+				}
+
+				for (var i = 0; i < lines.length; i++) {
+					for (var x = 0; x < lines[i].length; x++) {
+						lines[i][x].start.x -= 8;
+						lines[i][x].end.x -= 8;
+
+						if (lines[i][x].end.x < -200) {
+							var h = getRandomInt(0, canvas.height - 200)
+							lines.push([
+								new Line(lines[lines.length-1][0].end.x, lines[lines.length-1][0].end.y, lines[lines.length-1][0].end.x+canvas.width/5, h),
+								new Line(lines[lines.length-1][0].end.x, lines[lines.length-1][1].end.y, lines[lines.length-1][0].end.x+canvas.width/5, h+150)
+							])
+							lines.splice(i, 1);
+						}
+					}
+				}
+
+				checkCollision();
+			}
+
+			function draw() {
+				ctx.fillStyle="white"
+				ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+				for (var i = 0; i < cars.length; i++) {
+					cars[i].draw();
+				}
+
+				for (var i = 0; i < lines.length; i++) {
+					lines[i][0].draw();
+					lines[i][1].draw();
+				}
+
+				$("#score").text("Current Score: " + score);
+				$("#highscore").text("Highscore: " + highScore);
+				$("#generation").text("Generation: " + generation);
+			}
+
+			function optimize() {
+				if (FPS !== 29) {
+					if (averageArray > parseInt($("#fpsSlider")[0].value)) {
+						if ($("#cycleSlider")[0].value < 100) {
+							$("#cycleSlider").val(parseInt($("#cycleSlider").val()) + 1) ;
+							$("#cycleText").text($("#cycleSlider")[0].value);
+							cycles = parseInt($("#cycleSlider")[0].value);
+						}
+					} else if (averageArray < parseInt($("#fpsSlider")[0].value)) {
+						if ($("#cycleSlider")[0].value > 1) {
+							$("#cycleSlider").val(parseInt($("#cycleSlider").val()) - 1) ;
+							$("#cycleText").text($("#cycleSlider")[0].value);
+							cycles = parseInt($("#cycleSlider")[0].value);
+						}
+					}
+				}
+			}
+		       
+		    loop();
+
+		    // Frames optimizer
+
+	        var fps = 200;
+	        var now;
+	        var then = Date.now();
+	        var interval = 1000/fps;
+	        var delta;
+	        var fpsArray = [];
+	        var averageArray;
+
+		    function loop(code) {
+		        requestAnimationFrame(loop);
+		           
+		        now = Date.now();
+		        delta = now - then;
+		           
+		        if (delta > interval) {
+		               
+		            then = now - (delta % interval);
+		            ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+		            // Run the code
+		            
+		    		draw();
+		    		for (var i = 0; i < cycles; i++) {
+		            	update();
+		            }
+
+		            // Get average frames per second with a 30 frame buffer
+		              
+		            fpsArray.push(1000/delta);
+		            if (fpsArray.length > 30) {
+		                fpsArray.shift();
+		            }
+		              
+		            averageArray = fpsArray.reduce((a, b) => a + b, 0)/fpsArray.length;
+
+		            // Draw the framerate top left of screen
+		            ctx.beginPath();
+		            ctx.font = "50px Arial";
+		            ctx.fillStyle = "red";
+		            ctx.fillText(Math.floor(averageArray), 20, 50);
+		            ctx.closePath();
+		              
+		        }
+		    }
+
+		    var map = {}; // You could also use an array
+			onkeydown = onkeyup = function(e){
+			    e = e || event; // to deal with IE
+			    map[e.keyCode] = e.type == 'keydown';
+			    /* insert conditional here */
+			}
+
+			function line_intersect(x1, y1, x2, y2, x3, y3, x4, y4) {
+			    var ua, ub, denom = (y4 - y3)*(x2 - x1) - (x4 - x3)*(y2 - y1);
+			    if (denom == 0) {
+			        return null;
+			    }
+			    ua = ((x4 - x3)*(y1 - y3) - (y4 - y3)*(x1 - x3))/denom;
+			    ub = ((x2 - x1)*(y1 - y3) - (y2 - y1)*(x1 - x3))/denom;
+			    return {
+			        x: x1 + ua * (x2 - x1),
+			        y: y1 + ub * (y2 - y1),
+			        seg1: ua >= 0 && ua <= 1,
+			        seg2: ub >= 0 && ub <= 1
+			    };
+			}
+
+			function lineIntersect(x1,y1,x2,y2, x3,y3,x4,y4) {
+			    var x=((x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4))/((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4));
+			    var y=((x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4))/((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4));
+			    if (isNaN(x)||isNaN(y)) {
+			        return false;
+			    } else {
+			        if (x1>=x2) {
+			            if (!(x2<=x&&x<=x1)) {return false;}
+			        } else {
+			            if (!(x1<=x&&x<=x2)) {return false;}
+			        }
+			        if (y1>=y2) {
+			            if (!(y2<=y&&y<=y1)) {return false;}
+			        } else {
+			            if (!(y1<=y&&y<=y2)) {return false;}
+			        }
+			        if (x3>=x4) {
+			            if (!(x4<=x&&x<=x3)) {return false;}
+			        } else {
+			            if (!(x3<=x&&x<=x4)) {return false;}
+			        }
+			        if (y3>=y4) {
+			            if (!(y4<=y&&y<=y3)) {return false;}
+			        } else {
+			            if (!(y3<=y&&y<=y4)) {return false;}
+			        }
+			    }
+			    return true;
+			}
+
+		    function drawRect(x, y, w, h, d, c, o) {
+			  	ctx.translate(x, y)
+			  	ctx.rotate(d);
+			  
+				ctx.rect(-w/2, -h/2, w, h);
+			  	ctx.fillStyle = c || 'grey';
+			  	ctx.globalAlpha = 0.4;
+			  	ctx.fill();
+			  	ctx.beginPath();
+			  	ctx.lineWidth = 0.5;
+			  	ctx.strokeStyle = 'black';
+			  	ctx.stroke();
+			  	ctx.globalAlpha = 1;
+			  	ctx.resetTransform();
+			  
+			}
+
+		    function getRandomInt(min, max) {
+			    return Math.floor(Math.random() * (max - min + 1)) + min;
+			}
+
+			function rectCircleColliding(circle,rect){
+			    var distX = Math.abs(circle.x - rect.x-rect.width/2);
+			    var distY = Math.abs(circle.y - rect.y-rect.height/2);
+
+			    if (distX > (rect.width/2 + circle.r)) { return false; }
+			    if (distY > (rect.height/2 + circle.r)) { return false; }
+
+			    if (distX <= (rect.width/2)) { return true; } 
+			    if (distY <= (rect.height/2)) { return true; }
+
+			    var dx=distX-rect.width/2;
+			    var dy=distY-rect.height/2;
+			    return (dx*dx+dy*dy<=(circle.r*circle.r));
+			}
+
+			function addData(chart, label, data, maximumLength) {
+			    chart.data.labels.push(label);
+			    chart.data.datasets.forEach((dataset) => {
+			        dataset.data.push(data);
+			        if (dataset.data.length > maximumLength) {
+				    	dataset.data.shift();
+				    }
+			    });
+			    if (chart.data.labels.length > maximumLength) {
+			    	chart.data.labels.shift();
+			    }
+			    chart.update();
+			}
+		</script>
+	</body>
+</html>
