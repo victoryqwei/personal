@@ -1,141 +1,138 @@
 <html ng-app="app">
+  <head>
+    <title>Victor Wei</title>
 
-<head>
-  <title>Victor Wei</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, user-scalable=yes, minimum-scale=1.0, maximum-scale=1.0" />
+    <meta
+      name="description"
+      content="Hey there! I am currently a first year studying in Software Engineering at the University of Waterloo. I have a keen interest in web and game development, machine learning, and physics simulations. Feel free to take a look around!"
+    />
+    <meta name="theme-color" content="#317EFB" />
+    <meta name="keywords" content="Victor Wei, Victor, Wei, victoryqwei" />
+    <meta name="author" content="Victor Wei" />
 
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, user-scalable=yes, minimum-scale=1.0, maximum-scale=1.0" />
-  <meta name="description"
-    content="Hey there! I am currently a first year studying in Software Engineering at the University of Waterloo. I have a keen interest in web and game development, machine learning, and physics simulations. Feel free to take a look around!" />
-  <meta name="theme-color" content="#317EFB" />
-  <meta name="keywords" content="Victor Wei, Victor, Wei, victoryqwei" />
-  <meta name="author" content="Victor Wei" />
+    <!-- Open graph meta data -->
+    <meta property="og:title" content="Victor Wei" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://victorwei.com" />
+    <meta property="og:image" content="https://victorwei.com/pic/logo.jpg" />
+    <meta
+      property="og:description"
+      content="Hey there! I am currently a first year studying in Software Engineering at the University of Waterloo. I have an strong interest in game development, machine learning, and physics simulations. Outside my passion for coding, I'm an avid  I love to go on hiking trips, cook delectable dishes, and play video games!"
+    />
+    <meta name="keywords" content="HTML, CSS, JavaScript" />
+    <meta name="author" content="Victor Wei" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Open graph meta data -->
-  <meta property="og:title" content="Victor Wei" />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://victorwei.com" />
-  <meta property="og:image" content="https://victorwei.com/pic/logo.jpg" />
-  <meta property="og:description"
-    content="Hey there! I am currently a first year studying in Software Engineering at the University of Waterloo. I have an strong interest in game development, machine learning, and physics simulations. Outside my passion for coding, I'm an avid  I love to go on hiking trips, cook delectable dishes, and play video games!" />
-  <meta name="keywords" content="HTML, CSS, JavaScript">
-  <meta name="author" content="Victor Wei">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" type="image/png" href="pic/logo.png" />
+    <link rel="shortcut icon" type="image/png" href="https://victorwei.com/pic/logo.png" />
 
-  <link rel="shortcut icon" type="image/png" href="pic/logo.png" />
-  <link rel="shortcut icon" type="image/png" href="https://victorwei.com/pic/logo.png" />
+    <link rel="stylesheet" href="css/bootstrap.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/style.css" />
+    <link rel="stylesheet" type="text/css" href="css/extra.css" />
+    <link rel="stylesheet" type="text/css" href="css/home.css" />
+    <link rel="stylesheet" type="text/css" href="css/about.css" />
+    <link rel="stylesheet" type="text/css" href="css/blog.css" />
+    <link rel="stylesheet" type="text/css" href="css/projects.css" />
+    <link rel="stylesheet" type="text/css" href="css/owl.theme.default.css" />
+    <link rel="stylesheet" type="text/css" href="css/owl.carousel.css" />
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=" />
+    <script src="javascripts/socket.io.js"></script>
+    <script src="javascripts/jquery.js"></script>
+    <script src="javascripts/index.js"></script>
+    <script src="javascripts/angular.min.js"></script>
+    <script src="javascripts/angular-route.js"></script>
+    <script src="javascripts/owl.carousel.js"></script>
 
-  <link rel="stylesheet" href="css/bootstrap.min.css">
-  <link rel="stylesheet" type="text/css" href="css/style.css">
-  <link rel="stylesheet" type="text/css" href="css/extra.css">
-  <link rel="stylesheet" type="text/css" href="css/home.css">
-  <link rel="stylesheet" type="text/css" href="css/about.css">
-  <link rel="stylesheet" type="text/css" href="css/blog.css">
-  <link rel="stylesheet" type="text/css" href="css/projects.css">
-  <link rel="stylesheet" type="text/css" href="css/owl.theme.default.css">
-  <link rel="stylesheet" type="text/css" href="css/owl.carousel.css">
-  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-  <script src="javascripts/socket.io.js"></script>
-  <script src="javascripts/jquery.js"></script>
-  <script src="javascripts/index.js"></script>
-  <script src="javascripts/angular.min.js"></script>
-  <script src="javascripts/angular-route.js"></script>
-  <script src="javascripts/owl.carousel.js"></script>
+    <base href="/" />
 
-  <base href="/">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
+  </head>
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
-</head>
-
-<body>
-  <div id="navigation">
-    <a href="/" class="logo">
-      <img id="logoPic" src="pic/logo.jpg">
-    </a>
-    <h1 id="navName">Victor Wei</h1>
-    <div style="float: right">
-      <a href="/" class="route" id="navHome">
-        <span>Home</span>
+  <body>
+    <div id="navigation">
+      <a href="/" class="logo">
+        <img id="logoPic" src="pic/logo.jpg" />
       </a>
-      <a class="route" id="navAbout">
-        <span>About</span>
-      </a>
-      <a class="route" id="navProjects">
-        <span>Portfolio</span>
-      </a>
-      <a class="route" id="navBlog">
-        <span>Blog</span>
-      </a>
+      <h1 id="navName">Victor Wei</h1>
+      <div style="float: right">
+        <a href="/" class="route" id="navHome">
+          <span>Home</span>
+        </a>
+        <a class="route" id="navAbout">
+          <span>About</span>
+        </a>
+        <a class="route" id="navProjects">
+          <span>Portfolio</span>
+        </a>
+        <a class="route" id="navBlog">
+          <span>Blog</span>
+        </a>
+      </div>
     </div>
-  </div>
 
-  <div style="width: 5%; position: fixed; left: 20px; z-index: 5; bottom: 5%;">
-    <p><a href="https://github.com/victoryqwei" target="_blank" class="fa fa-github"
-        style="background-color: white"></a></p>
-    <p><a href="https://www.linkedin.com/in/victoryqwei/" target="_blank" class="fa fa-linkedin"
-        style="background-color: aqua"></a></p>
-    <p><a href="mailto:victoryqwei@gmail.com" target="_blank" class="fa fa-google"></a></p>
-    <p><a href="https://www.instagram.com/victor.codes/" target="_blank" class="fa fa-instagram"></a></p>
-  </div>
+    <div style="width: 5%; position: fixed; left: 20px; z-index: 5; bottom: 5%">
+      <p><a href="https://github.com/victoryqwei" target="_blank" class="fa fa-github" style="background-color: white"></a></p>
+      <p><a href="https://www.linkedin.com/in/victoryqwei/" target="_blank" class="fa fa-linkedin" style="background-color: aqua"></a></p>
+      <p><a href="mailto:victoryqwei@gmail.com" target="_blank" class="fa fa-google"></a></p>
+      <p><a href="https://www.instagram.com/victor.codes/" target="_blank" class="fa fa-instagram"></a></p>
+    </div>
 
+    <div id="view" ng-view></div>
+    <div id="footer" style="display: none">
+      <span>© 2017-2023 Victor Wei</span>
+    </div>
+    <script>
+      var app = angular.module("app", ["ngRoute"]);
+      app.config(function ($routeProvider, $locationProvider) {
+        $routeProvider.when("/", {
+          templateUrl: "home.html",
+        });
+        $locationProvider.html5Mode(true);
+      });
 
-  <div id="view" ng-view></div>
-  <div id="footer" style="display:none">
-    <span>© 2017-2022 Victor Wei</span>
-  </div>
-  <script>
-    var app = angular.module("app", ["ngRoute"]);
-    app.config(function ($routeProvider, $locationProvider) {
-      $routeProvider
-        .when("/", {
-          templateUrl: "home.html"
-        })
-      $locationProvider.html5Mode(true);
-    });
+      app.directive("about", function () {
+        return {
+          templateUrl: "about.html",
+        };
+      });
 
-    app.directive('about', function () {
-      return {
-        templateUrl: 'about.html',
-      };
-    });
+      app.directive("projects", function () {
+        return {
+          templateUrl: "projects.html",
+        };
+      });
 
-    app.directive('projects', function () {
-      return {
-        templateUrl: 'projects.html',
-      };
-    });
+      app.directive("blog", function () {
+        return {
+          templateUrl: "blog.html",
+        };
+      });
 
-    app.directive('blog', function () {
-      return {
-        templateUrl: 'blog.html',
-      };
-    });
+      $(".route").mousedown(function (event) {
+        event.preventDefault();
+      });
 
-    $(".route").mousedown(function (event) {
-      event.preventDefault()
-    })
+      $(document).scroll(function (event) {
+        if ($(window).scrollTop() >= window.innerHeight) {
+          // Show navigation bar
+          $("#navigation").css({
+            position: "fixed",
+            "margin-top": "0px",
+          });
+          $("#iframe").hide();
+        } else {
+          $("#navigation").css({
+            position: "absolute",
+            "margin-top": "100vh",
+          });
+          $("#iframe").show();
+        }
+      });
 
-    $(document).scroll(function (event) {
-      if ($(window).scrollTop() >= window.innerHeight) {
-        // Show navigation bar
-        $("#navigation").css({
-          'position': 'fixed',
-          'margin-top': '0px'
-        })
-        $("#iframe").hide();
-      } else {
-        $("#navigation").css({
-          'position': 'absolute',
-          'margin-top': '100vh'
-        })
-        $("#iframe").show();
-      }
-    })
-
-    $(window).bind('mousewheel', function (e) {
-
-      /*if ($(window).scrollTop() >= window.innerHeight && e.originalEvent.wheelDelta /120 > 0) {
+      $(window).bind("mousewheel", function (e) {
+        /*if ($(window).scrollTop() >= window.innerHeight && e.originalEvent.wheelDelta /120 > 0) {
         // Show navigation bar
         $("#navigation").css({
           'position': 'fixed',
@@ -155,13 +152,13 @@
           'transition': '0'
         })
       }*/
-    });
+      });
 
-    $(document).ready(function () {
-      setTimeout(() => { $("#footer").show(); }, 1000)
-    })
-
-  </script>
-</body>
-
+      $(document).ready(function () {
+        setTimeout(() => {
+          $("#footer").show();
+        }, 1000);
+      });
+    </script>
+  </body>
 </html>
