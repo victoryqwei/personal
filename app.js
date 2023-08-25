@@ -17,7 +17,7 @@ var url = require("url");
 
 // Set title
 var setTitle = require("console-title");
-setTitle("Personal Server (victorwei.com)");
+setTitle("Personal Server (old.victorwei.com)");
 
 // Start server
 var serverPort = process.env.PORT || 3009;
