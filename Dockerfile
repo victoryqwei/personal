@@ -1,5 +1,5 @@
-# Use Node.js LTS version
-FROM node:18-alpine
+# EKS nodes are amd64; build for linux/amd64 even on Apple Silicon
+FROM --platform=linux/amd64 node:18-alpine
 
 # Set working directory
 WORKDIR /app
