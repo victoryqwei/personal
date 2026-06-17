@@ -1,5 +1,7 @@
-# EKS nodes are amd64; build for linux/amd64 even on Apple Silicon
-FROM --platform=linux/amd64 node:18-alpine
+# Multi-arch: let the base image follow the build's target platform (amd64 or
+# arm64) so the same tag runs on both x86 and Graviton nodes. Do NOT pin
+# --platform here — that bakes amd64 binaries into the arm64 manifest entry.
+FROM node:18-alpine
 
 # Set working directory
 WORKDIR /app
